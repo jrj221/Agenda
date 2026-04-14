@@ -1,1 +1,348 @@
-/* App styles */
+/* ── Design Tokens ────────────────────────────── */
+:root {
+	--red: #e8321a;
+	--red-dark: #c42a14;
+	--orange: #f97316;
+	--orange-light: #fb923c;
+	--orange-glow: rgba(249, 115, 22, 0.18);
+	--white: #ffffff;
+	--off-white: #fff7f0;
+	--sand: #fde8d8;
+	--text: #1a0a00;
+	--text-muted: #7a4030;
+	--radius-sm: 12px;
+	--radius-md: 20px;
+	--radius-lg: 32px;
+	--shadow-card: 0 8px 40px rgba(232, 50, 26, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+	--shadow-btn: 0 4px 18px rgba(249, 115, 22, 0.45);
+}
+
+/* ── Base ────────────────────────────────────── */
+body {
+	background: var(--off-white);
+	color: var(--text);
+}
+
+/* ── Page Layout ─────────────────────────────── */
+.page {
+	min-height: 100svh;
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Background decorative blobs */
+.page::before,
+.page::after {
+	content: "";
+	position: fixed;
+	border-radius: 50%;
+	pointer-events: none;
+	z-index: 0;
+}
+
+.page::before {
+	width: 520px;
+	height: 520px;
+	background: radial-gradient(circle, rgba(249, 115, 22, 0.22) 0%, transparent 70%);
+	top: -160px;
+	right: -140px;
+}
+
+.page::after {
+	width: 400px;
+	height: 400px;
+	background: radial-gradient(circle, rgba(232, 50, 26, 0.14) 0%, transparent 70%);
+	bottom: -120px;
+	left: -100px;
+}
+
+/* ── Header ──────────────────────────────────── */
+.header {
+	position: relative;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	padding: 20px 36px;
+}
+
+.logo {
+	font-size: 1.6rem;
+	font-weight: 800;
+	letter-spacing: -0.5px;
+	background: linear-gradient(135deg, var(--red) 0%, var(--orange) 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	user-select: none;
+}
+
+/* ── Main ────────────────────────────────────── */
+.main {
+	position: relative;
+	z-index: 1;
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 24px 20px 60px;
+}
+
+/* ── Card ────────────────────────────────────── */
+.card {
+	background: var(--white);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-card);
+	padding: 36px 36px 40px;
+	width: 100%;
+	max-width: 600px;
+	border: 1.5px solid rgba(249, 115, 22, 0.12);
+}
+
+.card-header {
+	margin-bottom: 28px;
+}
+
+.card-title {
+	font-size: 1.75rem;
+	font-weight: 800;
+	letter-spacing: -0.5px;
+	color: var(--text);
+	margin-bottom: 4px;
+}
+
+.card-subtitle {
+	font-size: 0.95rem;
+	color: var(--text-muted);
+}
+
+/* ── Input Row ───────────────────────────────── */
+.input-row {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 28px;
+}
+
+.text-input {
+	flex: 1;
+	padding: 13px 18px;
+	border: 2px solid var(--sand);
+	border-radius: var(--radius-md);
+	font-size: 0.95rem;
+	font-family: inherit;
+	background: var(--off-white);
+	color: var(--text);
+	outline: none;
+	transition:
+		border-color 0.2s,
+		box-shadow 0.2s;
+}
+
+.text-input::placeholder {
+	color: #c4907a;
+}
+
+.text-input:focus {
+	border-color: var(--orange);
+	box-shadow: 0 0 0 4px var(--orange-glow);
+	background: var(--white);
+}
+
+.add-btn {
+	padding: 13px 22px;
+	background: linear-gradient(135deg, var(--orange) 0%, var(--red) 100%);
+	color: var(--white);
+	border: none;
+	border-radius: var(--radius-md);
+	font-size: 0.95rem;
+	font-weight: 700;
+	font-family: inherit;
+	cursor: pointer;
+	white-space: nowrap;
+	box-shadow: var(--shadow-btn);
+	transition:
+		opacity 0.18s,
+		transform 0.15s,
+		box-shadow 0.18s;
+}
+
+.add-btn:hover {
+	opacity: 0.92;
+	transform: translateY(-1px);
+	box-shadow: 0 6px 24px rgba(249, 115, 22, 0.55);
+}
+
+.add-btn:active {
+	transform: translateY(0);
+}
+
+/* ── Item List ───────────────────────────────── */
+.item-list {
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.item {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 14px 16px;
+	background: var(--off-white);
+	border: 1.5px solid var(--sand);
+	border-radius: var(--radius-md);
+	transition:
+		border-color 0.18s,
+		box-shadow 0.18s;
+	cursor: grab;
+}
+
+.item:active {
+	cursor: grabbing;
+}
+
+/* Source item stays in DOM during drag so the browser doesn't cancel the operation.
+   We just make it transparent so it reads as "lifted". */
+.item--dragging {
+	opacity: 0.3;
+	border-style: dashed;
+}
+
+/* Insertion line — shown between items during drag to mark drop position */
+.drop-indicator {
+	list-style: none;
+	height: 3px;
+	background: linear-gradient(90deg, var(--orange), var(--red));
+	border-radius: 3px;
+	margin: 2px 0;
+	pointer-events: none;
+	position: relative;
+}
+
+.drop-indicator::before,
+.drop-indicator::after {
+	content: "";
+	position: absolute;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.drop-indicator::before {
+	left: -1px;
+	background: var(--orange);
+}
+
+.drop-indicator::after {
+	right: -1px;
+	background: var(--red);
+}
+
+.item:hover {
+	border-color: var(--orange-light);
+	box-shadow: 0 2px 12px rgba(249, 115, 22, 0.12);
+}
+
+/* Drag handle grip icon */
+.drag-handle {
+	flex-shrink: 0;
+	color: #d4a898;
+	font-size: 1rem;
+	line-height: 1;
+	user-select: none;
+	transition: color 0.15s;
+}
+
+.item:hover .drag-handle {
+	color: var(--orange);
+}
+
+.item-number {
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: linear-gradient(135deg, var(--orange) 0%, var(--red) 100%);
+	color: var(--white);
+	font-size: 0.78rem;
+	font-weight: 800;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.item-name {
+	flex: 1;
+	font-size: 0.97rem;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.remove-btn {
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	border: none;
+	background: transparent;
+	color: #c49080;
+	font-size: 0.75rem;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition:
+		background 0.15s,
+		color 0.15s;
+}
+
+.remove-btn:hover {
+	background: rgba(232, 50, 26, 0.1);
+	color: var(--red);
+}
+
+/* ── Empty State ─────────────────────────────── */
+.empty-state {
+	text-align: center;
+	padding: 36px 0 12px;
+	color: var(--text-muted);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+
+.empty-icon {
+	font-size: 2.4rem;
+}
+
+.empty-state p {
+	font-size: 0.95rem;
+}
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width: 480px) {
+	.header {
+		padding: 16px 20px;
+	}
+
+	.card {
+		padding: 24px 20px 32px;
+	}
+
+	.card-title {
+		font-size: 1.4rem;
+	}
+
+	.input-row {
+		flex-direction: column;
+	}
+
+	.add-btn {
+		width: 100%;
+	}
+}
