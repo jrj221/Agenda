@@ -1,3 +1,6 @@
+import { CommandHistory } from "../commands/Command";
+import { AddItemCommand, RemoveItemCommand, EditItemCommand, MoveItemCommand } from "../commands/AgendaCommands";
+
 export interface AgendaItem {
 	id: number;
 	name: string;
@@ -22,6 +25,7 @@ export class HomepagePresenter {
 	private listener: HomepageListener;
 	private _items: AgendaItem[] = [];
 	private _trip: Trip | null = null;
+	private history = new CommandHistory();
 
 	constructor(listener: HomepageListener) {
 		this.listener = listener;
@@ -33,6 +37,21 @@ export class HomepagePresenter {
 
 	get trip(): Trip | null {
 		return this._trip;
+	}
+
+	// Applies a new items array: sorts and notifies the view.
+	// All command execute/undo paths go through here.
+	private applyItems(items: AgendaItem[]): void {
+		this._items = [...items];
+		this.sortItems();
+		this.listener.setItems(this._items);
+	}
+
+	private sortItems(): void {
+		this._items.sort((a, b) => {
+			if (a.day !== b.day) return a.day.localeCompare(b.day);
+			return a.startTime.localeCompare(b.startTime);
+		});
 	}
 
 	createTrip(name: string, startDate: string, endDate: string): void {
@@ -68,44 +87,55 @@ export class HomepagePresenter {
 			e = `${String(hour < 23 ? hour + 1 : 23).padStart(2, "0")}:59`;
 		}
 
-		this._items = [...this._items, { id: Date.now(), name: trimmed, day, startTime: s, endTime: e }];
-		this.sortItems();
-		this.listener.setItems(this._items);
-	}
+		const before = [...this._items];
+		const newItem: AgendaItem = { id: Date.now(), name: trimmed, day, startTime: s, endTime: e };
+		const after = [...before, newItem];
 
-	private sortItems(): void {
-		this._items.sort((a, b) => {
-			if (a.day !== b.day) return a.day.localeCompare(b.day);
-			return a.startTime.localeCompare(b.startTime);
-		});
+		this.history.run(new AddItemCommand(before, after, (items) => this.applyItems(items)));
 	}
 
 	removeItem(id: number): void {
-		this._items = this._items.filter((i) => i.id !== id);
+		const before = [...this._items];
+		const after = before.filter((i) => i.id !== id);
+		this.history.run(new RemoveItemCommand(before, after, (items) => this.applyItems(items)));
+	}
+
+	// Removes multiple items without adding to undo history.
+	// Used for bulk deletions tied to trip-date changes, which are themselves not undoable.
+	removeItemsBulk(ids: number[]): void {
+		const idSet = new Set(ids);
+		this._items = this._items.filter((i) => !idSet.has(i.id));
 		this.listener.setItems(this._items);
 	}
 
+	// Used for drag-drop repositioning (day + time only).
 	updateItem(id: number, day: string, startTime: string, endTime: string): void {
-		const idx = this._items.findIndex((i) => i.id === id);
+		const before = [...this._items];
+		const idx = before.findIndex((i) => i.id === id);
 		if (idx === -1) return;
 
-		const next = [...this._items];
-		next[idx] = { ...next[idx], day, startTime, endTime };
-		this._items = next;
-		this.sortItems();
-		this.listener.setItems(this._items);
+		const after = [...before];
+		after[idx] = { ...after[idx], day, startTime, endTime };
+
+		this.history.run(new MoveItemCommand(before, after, (items) => this.applyItems(items)));
 	}
 
+	// Used for the edit modal (name + day + time).
 	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string): void {
 		const trimmed = name.trim();
 		if (!trimmed) return;
-		const idx = this._items.findIndex((i) => i.id === id);
+		const before = [...this._items];
+		const idx = before.findIndex((i) => i.id === id);
 		if (idx === -1) return;
 
-		const next = [...this._items];
-		next[idx] = { ...next[idx], name: trimmed, day, startTime, endTime };
-		this._items = next;
-		this.sortItems();
-		this.listener.setItems(this._items);
+		const after = [...before];
+		after[idx] = { ...after[idx], name: trimmed, day, startTime, endTime };
+
+		this.history.run(new EditItemCommand(before, after, (items) => this.applyItems(items)));
 	}
+
+	undo(): void { this.history.undo(); }
+	redo(): void { this.history.redo(); }
+	get canUndo(): boolean { return this.history.canUndo; }
+	get canRedo(): boolean { return this.history.canRedo; }
 }

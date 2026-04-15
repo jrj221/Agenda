@@ -1,4 +1,4 @@
-import { useState, useRef, forwardRef } from "react";
+import { useState, useRef, forwardRef, useEffect } from "react";
 import "../App.css";
 import type { AgendaItem, Trip, HomepageListener } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
@@ -58,6 +58,25 @@ function Homepage(props: Props) {
 		presenterRef.current = props.presenterFactory(listener);
 	}
 
+	useEffect(() => {
+		function handleKeyDown(e: KeyboardEvent) {
+			const mod = e.metaKey || e.ctrlKey;
+			if (!mod) return;
+			if (e.key === "z" && !e.shiftKey) {
+				e.preventDefault();
+				presenterRef.current?.undo();
+			} else if (e.key === "z" && e.shiftKey) {
+				e.preventDefault();
+				presenterRef.current?.redo();
+			} else if (e.key === "y") {
+				e.preventDefault();
+				presenterRef.current?.redo();
+			}
+		}
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, []);
+
 	function createTrip() {
 		presenterRef.current?.createTrip(tripName, startDate, endDate);
 	}
@@ -101,10 +120,10 @@ function Homepage(props: Props) {
 
 	function confirmDeleteEvents() {
 		if (!pendingTripEdit) return;
-		pendingTripEdit.potentiallyDeletedDates.forEach((date) => {
-			const itemsToDelete = items.filter((i) => i.day === date);
-			itemsToDelete.forEach((i) => presenterRef.current?.removeItem(i.id));
-		});
+		const idsToDelete = items
+			.filter((i) => pendingTripEdit.potentiallyDeletedDates.includes(i.day))
+			.map((i) => i.id);
+		presenterRef.current?.removeItemsBulk(idsToDelete);
 		presenterRef.current?.updateTrip(pendingTripEdit.name, pendingTripEdit.start, pendingTripEdit.end);
 		setPendingTripEdit(null);
 	}
