@@ -542,9 +542,31 @@ body {
 	justify-content: flex-end;
 }
 
+/* ── Date edit button (inline clickable date in subtitle) ── */
+.date-edit-btn {
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: inherit;
+	font-family: inherit;
+	font-weight: inherit;
+	color: var(--text-muted);
+	padding: 0;
+	text-decoration-line: underline;
+	text-decoration-style: dashed;
+	text-decoration-color: transparent;
+	transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.date-edit-btn:hover {
+	color: var(--orange);
+	text-decoration-color: var(--orange-light);
+}
+
 /* ── Datepicker overrides ────────────────────── */
 .react-datepicker-wrapper {
 	width: auto;
+	display: inline;
 }
 
 .react-datepicker {

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef } from "react";
 import "../App.css";
 import type { AgendaItem, Trip, HomepageListener } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
@@ -18,6 +18,15 @@ type PendingEdit = {
 	potentiallyDeletedDates: string[];
 } | null;
 
+// ── Custom DatePicker trigger button ──────────────
+const DateEditButton = forwardRef<HTMLButtonElement, { onClick?: () => void; displayText: string }>(
+	({ onClick, displayText }, ref) => (
+		<button className="date-edit-btn" onClick={onClick} ref={ref}>
+			{displayText}
+		</button>
+	)
+);
+
 // ── Homepage Component ─────────────────────────────
 function Homepage(props: Props) {
 	const [trip, setTrip] = useState<Trip | null>(null);
@@ -31,10 +40,7 @@ function Homepage(props: Props) {
 
 	// Edit Trip State
 	const [isEditingTripName, setIsEditingTripName] = useState(false);
-	const [isEditingTripDates, setIsEditingTripDates] = useState(false);
 	const [editTripName, setEditTripName] = useState("");
-	const [editStartDate, setEditStartDate] = useState("");
-	const [editEndDate, setEditEndDate] = useState("");
 	const [pendingTripEdit, setPendingTripEdit] = useState<PendingEdit>(null);
 
 	const listener: HomepageListener = {
@@ -62,38 +68,35 @@ function Homepage(props: Props) {
 		setIsEditingTripName(true);
 	}
 
-	function startEditTripDates() {
-		if (!trip) return;
-		setEditStartDate(trip.startDate);
-		setEditEndDate(trip.endDate);
-		setIsEditingTripDates(true);
-	}
-
 	function saveTripNameEdit() {
 		if (!trip) return;
 		presenterRef.current?.updateTrip(editTripName, trip.startDate, trip.endDate);
 		setIsEditingTripName(false);
 	}
 
-	function saveTripDatesEdit() {
+	function saveTripDatesEditWith(newStart: string, newEnd: string) {
 		if (!trip) return;
-		const newDateRange = generateDateRangeArray(editStartDate, editEndDate);
+		const newDateRange = generateDateRangeArray(newStart, newEnd);
 		const newDateSet = new Set(newDateRange);
 
 		const datesWithEvents = new Set(items.map((i) => i.day));
 		const potentiallyDeletedDates = Array.from(datesWithEvents).filter((d) => !newDateSet.has(d));
 
 		if (potentiallyDeletedDates.length > 0) {
-			setPendingTripEdit({
-				name: trip.name,
-				start: editStartDate,
-				end: editEndDate,
-				potentiallyDeletedDates,
-			});
+			setPendingTripEdit({ name: trip.name, start: newStart, end: newEnd, potentiallyDeletedDates });
 		} else {
-			presenterRef.current?.updateTrip(trip.name, editStartDate, editEndDate);
-			setIsEditingTripDates(false);
+			presenterRef.current?.updateTrip(trip.name, newStart, newEnd);
 		}
+	}
+
+	function handleStartDateChange(date: Date | null) {
+		if (!date || !trip) return;
+		saveTripDatesEditWith(formatDateObj(date), trip.endDate);
+	}
+
+	function handleEndDateChange(date: Date | null) {
+		if (!date || !trip) return;
+		saveTripDatesEditWith(trip.startDate, formatDateObj(date));
 	}
 
 	function confirmDeleteEvents() {
@@ -103,14 +106,12 @@ function Homepage(props: Props) {
 			itemsToDelete.forEach((i) => presenterRef.current?.removeItem(i.id));
 		});
 		presenterRef.current?.updateTrip(pendingTripEdit.name, pendingTripEdit.start, pendingTripEdit.end);
-		setIsEditingTripDates(false);
 		setPendingTripEdit(null);
 	}
 
 	function confirmKeepEvents() {
 		if (!pendingTripEdit) return;
 		presenterRef.current?.updateTrip(pendingTripEdit.name, pendingTripEdit.start, pendingTripEdit.end);
-		setIsEditingTripDates(false);
 		setPendingTripEdit(null);
 	}
 
@@ -159,7 +160,7 @@ function Homepage(props: Props) {
 								<DatePicker
 									className="date-input text-input"
 									selected={parseDateString(startDate)}
-									onChange={(date) => setStartDate(formatDateObj(date))}
+									onChange={(date: Date | null) => setStartDate(formatDateObj(date))}
 									selectsStart
 									startDate={parseDateString(startDate)}
 									endDate={parseDateString(endDate)}
@@ -171,7 +172,7 @@ function Homepage(props: Props) {
 								<DatePicker
 									className="date-input text-input"
 									selected={parseDateString(endDate)}
-									onChange={(date) => setEndDate(formatDateObj(date))}
+									onChange={(date: Date | null) => setEndDate(formatDateObj(date))}
 									selectsEnd
 									startDate={parseDateString(startDate)}
 									endDate={parseDateString(endDate)}
@@ -237,67 +238,25 @@ function Homepage(props: Props) {
 								</div>
 							)}
 
-							{!isEditingTripDates ? (
-								<p className="card-subtitle">
-									{formatDisplayDate(trip.startDate)} — {formatDisplayDate(trip.endDate)}
-									<button
-										className="edit-icon-btn"
-										onClick={startEditTripDates}
-										title="Edit Trip Dates"
-										aria-label="Edit Trip Dates"
-									>
-										✎
-									</button>
-								</p>
-							) : (
-								<div className="edit-trip-form">
-									<div className="input-group">
-										<div className="input-bar">
-											<span className="input-label">From:</span>
-											<DatePicker
-												className="date-input text-input"
-												selected={parseDateString(editStartDate)}
-												onChange={(date) => setEditStartDate(formatDateObj(date))}
-												selectsStart
-												startDate={parseDateString(editStartDate)}
-												endDate={parseDateString(editEndDate)}
-												dateFormat="MM/dd/yyyy"
-												placeholderText="Select date"
-											/>
-											<div className="divider" />
-											<span className="input-label">To:</span>
-											<DatePicker
-												className="date-input text-input"
-												selected={parseDateString(editEndDate)}
-												onChange={(date) => setEditEndDate(formatDateObj(date))}
-												selectsEnd
-												startDate={parseDateString(editStartDate)}
-												endDate={parseDateString(editEndDate)}
-												minDate={parseDateString(editStartDate) || undefined}
-												dateFormat="MM/dd/yyyy"
-												placeholderText="Select date"
-											/>
-										</div>
-									</div>
-									<div className="edit-actions">
-										<button
-											className="add-btn"
-											style={{ padding: "8px 16px" }}
-											onClick={saveTripDatesEdit}
-											disabled={!editStartDate || !editEndDate || editStartDate > editEndDate}
-										>
-											Save
-										</button>
-										<button
-											className="add-btn edit-cancel-btn"
-											style={{ padding: "8px 16px" }}
-											onClick={() => setIsEditingTripDates(false)}
-										>
-											Cancel
-										</button>
-									</div>
-								</div>
-							)}
+							<p className="card-subtitle">
+								<DatePicker
+									selected={parseDateString(trip.startDate)}
+									onChange={handleStartDateChange}
+									maxDate={parseDateString(trip.endDate) || undefined}
+									dateFormat="MM/dd/yyyy"
+									portalId="datepicker-portal"
+									customInput={<DateEditButton displayText={formatDisplayDate(trip.startDate)} />}
+								/>
+								{' — '}
+								<DatePicker
+									selected={parseDateString(trip.endDate)}
+									onChange={handleEndDateChange}
+									minDate={parseDateString(trip.startDate) || undefined}
+									dateFormat="MM/dd/yyyy"
+									portalId="datepicker-portal"
+									customInput={<DateEditButton displayText={formatDisplayDate(trip.endDate)} />}
+								/>
+							</p>
 						</div>
 
 						<div className="itinerary">
