@@ -294,7 +294,8 @@ function Homepage(props: Props) {
 	const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
 	// Edit Trip State
-	const [isEditingTrip, setIsEditingTrip] = useState(false);
+	const [isEditingTripName, setIsEditingTripName] = useState(false);
+	const [isEditingTripDates, setIsEditingTripDates] = useState(false);
 	const [editTripName, setEditTripName] = useState("");
 	const [editStartDate, setEditStartDate] = useState("");
 	const [editEndDate, setEditEndDate] = useState("");
@@ -319,15 +320,27 @@ function Homepage(props: Props) {
 		presenterRef.current?.createTrip(tripName, startDate, endDate);
 	}
 
-	function startEditTrip() {
+	function startEditTripName() {
 		if (!trip) return;
 		setEditTripName(trip.name);
-		setEditStartDate(trip.startDate);
-		setEditEndDate(trip.endDate);
-		setIsEditingTrip(true);
+		setIsEditingTripName(true);
 	}
 
-	function saveTripEdit() {
+	function startEditTripDates() {
+		if (!trip) return;
+		setEditStartDate(trip.startDate);
+		setEditEndDate(trip.endDate);
+		setIsEditingTripDates(true);
+	}
+
+	function saveTripNameEdit() {
+		if (!trip) return;
+		presenterRef.current?.updateTrip(editTripName, trip.startDate, trip.endDate);
+		setIsEditingTripName(false);
+	}
+
+	function saveTripDatesEdit() {
+		if (!trip) return;
 		const newDateRange = generateDateRangeArray(editStartDate, editEndDate);
 		const newDateSet = new Set(newDateRange);
 		
@@ -336,14 +349,14 @@ function Homepage(props: Props) {
 		
 		if (potentiallyDeletedDates.length > 0) {
 			setPendingTripEdit({
-				name: editTripName,
+				name: trip.name,
 				start: editStartDate,
 				end: editEndDate,
 				potentiallyDeletedDates
 			});
 		} else {
-			presenterRef.current?.updateTrip(editTripName, editStartDate, editEndDate);
-			setIsEditingTrip(false);
+			presenterRef.current?.updateTrip(trip.name, editStartDate, editEndDate);
+			setIsEditingTripDates(false);
 		}
 	}
 
@@ -354,14 +367,14 @@ function Homepage(props: Props) {
 			itemsToDelete.forEach(i => presenterRef.current?.removeItem(i.id));
 		});
 		presenterRef.current?.updateTrip(pendingTripEdit.name, pendingTripEdit.start, pendingTripEdit.end);
-		setIsEditingTrip(false);
+		setIsEditingTripDates(false);
 		setPendingTripEdit(null);
 	}
 
 	function confirmKeepEvents() {
 		if (!pendingTripEdit) return;
 		presenterRef.current?.updateTrip(pendingTripEdit.name, pendingTripEdit.start, pendingTripEdit.end);
-		setIsEditingTrip(false);
+		setIsEditingTripDates(false);
 		setPendingTripEdit(null);
 	}
 
@@ -434,18 +447,13 @@ function Homepage(props: Props) {
 				) : (
 					<div className="card" style={{ maxWidth: "1200px" }}>
 						<div className="card-header">
-							{!isEditingTrip ? (
-								<>
-									<h1 className="card-title">
-										{trip.name}
-										<button className="edit-icon-btn" onClick={startEditTrip} title="Edit Trip" aria-label="Edit Trip">✏️</button>
-									</h1>
-									<p className="card-subtitle">
-										{formatDisplayDate(trip.startDate)} — {formatDisplayDate(trip.endDate)}
-									</p>
-								</>
+							{!isEditingTripName ? (
+								<h1 className="card-title">
+									{trip.name}
+									<button className="edit-icon-btn" onClick={startEditTripName} title="Edit Trip Name" aria-label="Edit Trip Name">✎</button>
+								</h1>
 							) : (
-								<div className="edit-trip-form">
+								<div className="edit-trip-form" style={{ marginBottom: "16px" }}>
 									<div className="input-group">
 										<div className="input-bar trip-name-bar">
 											<input
@@ -457,6 +465,27 @@ function Homepage(props: Props) {
 											/>
 										</div>
 									</div>
+									<div className="edit-actions">
+										<button 
+											className="add-btn" 
+											style={{ padding: "8px 16px" }}
+											onClick={saveTripNameEdit}
+											disabled={!editTripName}
+										>
+											Save
+										</button>
+										<button className="add-btn edit-cancel-btn" style={{ padding: "8px 16px" }} onClick={() => setIsEditingTripName(false)}>Cancel</button>
+									</div>
+								</div>
+							)}
+
+							{!isEditingTripDates ? (
+								<p className="card-subtitle">
+									{formatDisplayDate(trip.startDate)} — {formatDisplayDate(trip.endDate)}
+									<button className="edit-icon-btn" onClick={startEditTripDates} title="Edit Trip Dates" aria-label="Edit Trip Dates">✎</button>
+								</p>
+							) : (
+								<div className="edit-trip-form">
 									<div className="input-group">
 										<div className="input-bar">
 											<span className="input-label">From:</span>
@@ -479,12 +508,13 @@ function Homepage(props: Props) {
 									<div className="edit-actions">
 										<button 
 											className="add-btn" 
-											onClick={saveTripEdit}
-											disabled={!editTripName || !editStartDate || !editEndDate || editStartDate > editEndDate}
+											style={{ padding: "8px 16px" }}
+											onClick={saveTripDatesEdit}
+											disabled={!editStartDate || !editEndDate || editStartDate > editEndDate}
 										>
 											Save
 										</button>
-										<button className="add-btn edit-cancel-btn" onClick={() => setIsEditingTrip(false)}>Cancel</button>
+										<button className="add-btn edit-cancel-btn" style={{ padding: "8px 16px" }} onClick={() => setIsEditingTripDates(false)}>Cancel</button>
 									</div>
 								</div>
 							)}
