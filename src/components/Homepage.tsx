@@ -1,29 +1,39 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import "../App.css";
+import type { Item, HomepageListener } from "../presenters/HomepagePresenter";
+import { HomepagePresenter } from "../presenters/HomepagePresenter";
 
-interface Item {
-	id: number;
-	name: string;
+interface Props {
+	presenterFactory: (listener: HomepageListener) => HomepagePresenter;
 }
 
-type Entry = { type: "indicator" } | { type: "item"; item: Item; idx: number };
+type Entry = { type: "insertion-line" } | { type: "real-item"; item: Item; idx: number };
 
-function Homepage() {
+function Homepage(props: Props) {
 	const [items, setItems] = useState<Item[]>([]);
 	const [input, setInput] = useState("");
 	const [draggedId, setDraggedId] = useState<number | null>(null);
 	const [dropIndex, setDropIndex] = useState<number | null>(null);
 
+	// The listener allows the presenter to update local state without the component
+	// needing to manage the items array.
+	const listener: HomepageListener = {
+		setItems: (newItems: Item[]) => setItems(newItems),
+	};
+
+	const presenterRef = useRef<HomepagePresenter | null>(null);
+	if (!presenterRef.current) {
+		presenterRef.current = props.presenterFactory(listener);
+	}
+
 	// ── Itinerary actions ──────────────────────────
 	function addItem() {
-		const trimmed = input.trim();
-		if (!trimmed) return;
-		setItems((prev) => [...prev, { id: Date.now(), name: trimmed }]);
+		presenterRef.current?.addItem(input);
 		setInput("");
 	}
 
 	function removeItem(id: number) {
-		setItems((prev) => prev.filter((i) => i.id !== id));
+		presenterRef.current?.removeItem(id);
 	}
 
 	function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -32,19 +42,14 @@ function Homepage() {
 
 	// ── Drag & Drop ────────────────────────────────
 	function handleDragStart(e: React.DragEvent<HTMLLIElement>, id: number) {
-		// Keep the element in the DOM — removing it would cancel the browser drag.
-		// We just mark it with state so we can style it as transparent.
 		setDraggedId(id);
 		e.dataTransfer.effectAllowed = "move";
 	}
 
 	function handleDragOver(e: React.DragEvent<HTMLLIElement>, id: number) {
 		e.preventDefault();
-		// Skip updates when hovering over the item being dragged
 		if (id === draggedId) return;
 
-		// Determine if cursor is in the top or bottom half of this item,
-		// then set dropIndex to insert before or after it respectively.
 		const rect = e.currentTarget.getBoundingClientRect();
 		const isTopHalf = e.clientY < rect.top + rect.height / 2;
 		const idx = items.findIndex((i) => i.id === id);
@@ -54,40 +59,28 @@ function Homepage() {
 	function commitDrop() {
 		if (draggedId === null || dropIndex === null) return;
 
-		setItems((prev) => {
-			const from = prev.findIndex((i) => i.id === draggedId);
-			const dragged = prev[from];
-			const next = [...prev];
-			next.splice(from, 1);
-			// Adjust target index since one element was removed before it
-			const to = dropIndex > from ? dropIndex - 1 : dropIndex;
-			next.splice(to, 0, dragged);
-			return next;
-		});
+		presenterRef.current?.reorderItem(draggedId, dropIndex);
 
 		setDraggedId(null);
 		setDropIndex(null);
 	}
 
 	function handleDragEnd() {
-		// Fires whether drop succeeded or was cancelled — always reset state
 		setDraggedId(null);
 		setDropIndex(null);
 	}
 
 	// ── Build render entries ───────────────────────
-	// Inject the drop indicator pseudo-element at dropIndex,
-	// keeping all real items in the DOM throughout the drag.
 	const isDragging = draggedId !== null && dropIndex !== null;
 	const entries: Entry[] = [];
 	items.forEach((item, idx) => {
 		if (isDragging && dropIndex === idx) {
-			entries.push({ type: "indicator" });
+			entries.push({ type: "insertion-line" });
 		}
-		entries.push({ type: "item", item, idx });
+		entries.push({ type: "real-item", item, idx });
 	});
 	if (isDragging && dropIndex === items.length) {
-		entries.push({ type: "indicator" });
+		entries.push({ type: "insertion-line" });
 	}
 
 	return (
@@ -130,7 +123,7 @@ function Homepage() {
 							onDrop={commitDrop}
 						>
 							{entries.map((entry) =>
-								entry.type === "indicator" ? (
+								entry.type === "insertion-line" ? (
 									<li key="drop-indicator" className="drop-indicator" aria-hidden="true" />
 								) : (
 									<li
@@ -139,10 +132,15 @@ function Homepage() {
 										draggable
 										onDragStart={(e) => handleDragStart(e, entry.item.id)}
 										onDragOver={(e) => handleDragOver(e, entry.item.id)}
-										onDrop={(e) => { e.stopPropagation(); commitDrop(); }}
+										onDrop={(e) => {
+											e.stopPropagation();
+											commitDrop();
+										}}
 										onDragEnd={handleDragEnd}
 									>
-										<span className="drag-handle" aria-hidden="true">⠿</span>
+										<span className="drag-handle" aria-hidden="true">
+											⠿
+										</span>
 										<span className="item-number">{entry.idx + 1}</span>
 										<span className="item-name">{entry.item.name}</span>
 										<button
