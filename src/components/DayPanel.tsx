@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import "../App.css";
 import type { AgendaItem } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
-import { formatDisplayDate, timeToMins } from "../utils/dateUtils";
+import { formatDisplayDate, timeToMins, formatTime12h, parseDateString, formatDateObj } from "../utils/dateUtils";
+import DatePicker from "react-datepicker";
 
 type LayoutItem = AgendaItem & {
 	startMin: number;
@@ -10,6 +11,7 @@ type LayoutItem = AgendaItem & {
 	widthPercent: number;
 	leftPercent: number;
 	col: number;
+	tabDepth: number;
 };
 
 interface DayPanelProps {
@@ -26,6 +28,27 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 	const [name, setName] = useState("");
 	const [startTime, setStartTime] = useState("");
 	const [endTime, setEndTime] = useState("");
+	const dragOffsetY = React.useRef(0);
+
+	const [editingItem, setEditingItem] = useState<AgendaItem | null>(null);
+	const [editName, setEditName] = useState("");
+	const [editDay, setEditDay] = useState("");
+	const [editStartTime, setEditStartTime] = useState("");
+	const [editEndTime, setEditEndTime] = useState("");
+
+	function openEdit(item: AgendaItem) {
+		setEditingItem(item);
+		setEditName(item.name);
+		setEditDay(item.day);
+		setEditStartTime(item.startTime);
+		setEditEndTime(item.endTime);
+	}
+
+	function saveItemEdit() {
+		if (!editingItem) return;
+		presenterRef.current?.updateItemFull(editingItem.id, editName, editDay, editStartTime, editEndTime);
+		setEditingItem(null);
+	}
 
 	function addItem() {
 		presenterRef.current?.addItem(name, dayString, startTime, endTime);
@@ -43,7 +66,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 		e.stopPropagation();
 		if (draggedId === null) return;
 		const rect = e.currentTarget.getBoundingClientRect();
-		const y = e.clientY - rect.top;
+		const y = e.clientY - rect.top - dragOffsetY.current;
 
 		const draggedMins = y * 2; // Since height is 720px (1px = 2 mins)
 		const snappedMins = Math.max(0, Math.round(draggedMins / 15) * 15);
@@ -85,55 +108,39 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 			let s = timeToMins(i.startTime);
 			let e = timeToMins(i.endTime);
 			if (e <= s) e = s + 60;
-			return { ...i, startMin: s, endMin: e, col: -1, widthPercent: 100, leftPercent: 0 } as LayoutItem;
+			return { ...i, startMin: s, endMin: e, col: 0, widthPercent: 100, leftPercent: 0, tabDepth: 0 } as LayoutItem;
 		});
 
-		parsed.sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
-
-		const groups: LayoutItem[][] = [];
-		let currentGroup: LayoutItem[] = [];
-		let groupEnd = 0;
-
+		// Only events with the exact same start time share horizontal space.
+		// Events that merely overlap (different start times) stack on top of each other.
+		const byStart = new Map<number, LayoutItem[]>();
 		for (const item of parsed) {
-			if (currentGroup.length === 0) {
-				currentGroup.push(item);
-				groupEnd = item.endMin;
-			} else {
-				if (item.startMin < groupEnd) {
-					currentGroup.push(item);
-					groupEnd = Math.max(groupEnd, item.endMin);
-				} else {
-					groups.push(currentGroup);
-					currentGroup = [item];
-					groupEnd = item.endMin;
-				}
-			}
+			if (!byStart.has(item.startMin)) byStart.set(item.startMin, []);
+			byStart.get(item.startMin)!.push(item);
 		}
-		if (currentGroup.length > 0) groups.push(currentGroup);
 
-		for (const group of groups) {
-			const cols: LayoutItem[][] = [];
-			for (const item of group) {
-				let placed = false;
-				for (let i = 0; i < cols.length; i++) {
-					const lastInCol = cols[i][cols[i].length - 1];
-					if (item.startMin >= lastInCol.endMin) {
-						cols[i].push(item);
-						item.col = i;
-						placed = true;
-						break;
-					}
-				}
-				if (!placed) {
-					item.col = cols.length;
-					cols.push([item]);
+		for (const group of byStart.values()) {
+			const n = group.length;
+			group.forEach((item, idx) => {
+				item.col = idx;
+				item.widthPercent = 100 / n;
+				item.leftPercent = (100 / n) * idx;
+			});
+		}
+
+		// Sort ascending so j < i always means earlier start time.
+		parsed.sort((a, b) => a.startMin - b.startMin);
+
+		// tabDepth = how many earlier-starting events this event overlaps.
+		// Used to visually indent overlay events so they look like stacked tabs.
+		for (let i = 0; i < parsed.length; i++) {
+			let depth = 0;
+			for (let j = 0; j < i; j++) {
+				if (parsed[j].startMin < parsed[i].startMin && parsed[j].endMin > parsed[i].startMin) {
+					depth++;
 				}
 			}
-			const numCols = cols.length;
-			for (const item of group) {
-				item.widthPercent = 100 / numCols;
-				item.leftPercent = (100 / numCols) * item.col;
-			}
+			parsed[i].tabDepth = depth;
 		}
 
 		return parsed;
@@ -201,39 +208,112 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 							</div>
 						))}
 
-						{layoutItems.map((item) => (
-							<div
-								key={item.id}
-								className={`event-block ${draggedId === item.id ? "event-block--dragging" : ""}`}
-								draggable
-								onDragStart={(e) => {
-									e.dataTransfer.effectAllowed = "move";
-									setDraggedId(item.id);
-								}}
-								onDragEnd={() => setDraggedId(null)}
-								style={{
-									top: `${item.startMin * 0.5}px`,
-									height: `${(item.endMin - item.startMin) * 0.5}px`,
-									left: `${item.leftPercent}%`,
-									width: `calc(${item.widthPercent}% - 4px)`,
-									zIndex: draggedId === item.id ? 100 : item.col,
-								}}
-							>
-								<div className="event-block-content">
-									<div className="event-block-time">
-										{item.startTime} - {item.endTime}
-									</div>
-									<div className="event-block-name">{item.name}</div>
-								</div>
-								<button
-									className="remove-btn remove-btn--floating"
-									onClick={() => presenterRef.current?.removeItem(item.id)}
-									aria-label={`Remove ${item.name}`}
+						{layoutItems.map((item) => {
+							const tabIndent = Math.min(item.tabDepth, 4) * 10;
+							const isShort = (item.endMin - item.startMin) < 90;
+							const timeLabel = `${formatTime12h(item.startTime)} – ${formatTime12h(item.endTime)}`;
+							return (
+								<div
+									key={item.id}
+									className={`event-block ${draggedId === item.id ? "event-block--dragging" : ""}`}
+									draggable
+									onDoubleClick={(e) => { e.stopPropagation(); openEdit(item); }}
+									onDragStart={(e) => {
+										e.dataTransfer.effectAllowed = "move";
+										dragOffsetY.current = e.nativeEvent.offsetY;
+										setDraggedId(item.id);
+									}}
+									onDragEnd={() => setDraggedId(null)}
+									style={{
+										top: `${item.startMin * 0.5}px`,
+										height: `${(item.endMin - item.startMin) * 0.5}px`,
+										left: `calc(${item.leftPercent}% + ${tabIndent}px)`,
+										width: `calc(${item.widthPercent}% - ${tabIndent + 4}px)`,
+										zIndex: draggedId === item.id ? 9999 : item.startMin,
+									}}
 								>
-									✕
-								</button>
+									<div className="event-block-content">
+										{isShort ? (
+											<div className="event-block-inline">
+												<span className="event-block-name">{item.name}</span>
+												<span className="event-block-time">{timeLabel}</span>
+											</div>
+										) : (
+											<>
+												<div className="event-block-time">{timeLabel}</div>
+												<div className="event-block-name">{item.name}</div>
+											</>
+										)}
+									</div>
+									<button
+										className="remove-btn remove-btn--floating"
+										onClick={() => presenterRef.current?.removeItem(item.id)}
+										aria-label={`Remove ${item.name}`}
+									>
+										✕
+									</button>
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			)}
+
+			{editingItem && (
+				<div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setEditingItem(null); }}>
+					<div className="modal-card">
+						<h2 className="modal-title">Edit Event</h2>
+						<div className="input-group" style={{ flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+							<div className="input-bar trip-name-bar">
+								<input
+									className="text-input trip-name-input"
+									type="text"
+									placeholder="Event name"
+									value={editName}
+									onChange={(e) => setEditName(e.target.value)}
+								/>
 							</div>
-						))}
+							<div className="input-bar">
+								<span className="input-label">Day:</span>
+								<DatePicker
+									className="date-input text-input"
+									selected={parseDateString(editDay)}
+									onChange={(date: Date | null) => setEditDay(formatDateObj(date))}
+									dateFormat="MM/dd/yyyy"
+									portalId="datepicker-portal"
+									placeholderText="Select date"
+								/>
+							</div>
+							<div className="input-bar">
+								<span className="input-label">Start:</span>
+								<input
+									className="date-input text-input"
+									type="time"
+									value={editStartTime}
+									onChange={(e) => setEditStartTime(e.target.value)}
+								/>
+								<div className="divider" />
+								<span className="input-label">End:</span>
+								<input
+									className="date-input text-input"
+									type="time"
+									value={editEndTime}
+									onChange={(e) => setEditEndTime(e.target.value)}
+								/>
+							</div>
+						</div>
+						<div className="modal-actions">
+							<button
+								className="add-btn"
+								onClick={saveItemEdit}
+								disabled={!editName.trim() || !editDay}
+							>
+								Save
+							</button>
+							<button className="add-btn edit-cancel-btn" onClick={() => setEditingItem(null)}>
+								Cancel
+							</button>
+						</div>
 					</div>
 				</div>
 			)}

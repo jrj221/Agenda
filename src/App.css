@@ -358,7 +358,6 @@ body {
 
 .event-block:hover {
 	box-shadow: 0 6px 18px rgba(249, 115, 22, 0.18);
-	z-index: 10 !important;
 }
 
 .event-block:active {
@@ -390,6 +389,28 @@ body {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.event-block-inline {
+	display: flex;
+	align-items: baseline;
+	gap: 5px;
+	overflow: hidden;
+	white-space: nowrap;
+	padding-right: 20px;
+}
+
+.event-block-inline .event-block-name {
+	font-size: 0.78rem;
+	flex: 1;
+	min-width: 0;
+	margin-bottom: 0;
+}
+
+.event-block-inline .event-block-time {
+	font-size: 0.65rem;
+	flex-shrink: 0;
+	margin-bottom: 0;
 }
 
 .remove-btn--floating {

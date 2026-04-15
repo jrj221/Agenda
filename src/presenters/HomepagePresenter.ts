@@ -88,9 +88,22 @@ export class HomepagePresenter {
 	updateItem(id: number, day: string, startTime: string, endTime: string): void {
 		const idx = this._items.findIndex((i) => i.id === id);
 		if (idx === -1) return;
-		
+
 		const next = [...this._items];
 		next[idx] = { ...next[idx], day, startTime, endTime };
+		this._items = next;
+		this.sortItems();
+		this.listener.setItems(this._items);
+	}
+
+	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string): void {
+		const trimmed = name.trim();
+		if (!trimmed) return;
+		const idx = this._items.findIndex((i) => i.id === id);
+		if (idx === -1) return;
+
+		const next = [...this._items];
+		next[idx] = { ...next[idx], name: trimmed, day, startTime, endTime };
 		this._items = next;
 		this.sortItems();
 		this.listener.setItems(this._items);

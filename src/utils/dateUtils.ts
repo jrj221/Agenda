@@ -33,6 +33,14 @@ export function parseDateString(ds: string | null | undefined): Date | null {
 	return new Date(Number(y), Number(m)-1, Number(d));
 }
 
+export function formatTime12h(time: string): string {
+	if (!time) return "";
+	const [h, m] = time.split(":").map(Number);
+	const period = h < 12 ? "AM" : "PM";
+	const hour = h % 12 || 12;
+	return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 export function formatDateObj(d: Date | null): string {
 	if (!d) return "";
 	const y = d.getFullYear();
