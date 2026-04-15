@@ -26,3 +26,17 @@ export function generateDateRangeArray(start: string, end: string) {
 	}
 	return dates;
 }
+
+export function parseDateString(ds: string | null | undefined): Date | null {
+	if (!ds) return null;
+	const [y, m, d] = ds.split('-');
+	return new Date(Number(y), Number(m)-1, Number(d));
+}
+
+export function formatDateObj(d: Date | null): string {
+	if (!d) return "";
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
+}

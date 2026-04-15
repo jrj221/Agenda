@@ -1,14 +1,15 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import "../App.css";
 import type { AgendaItem, Trip, HomepageListener } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
+import { formatDisplayDate, generateDateRangeArray, parseDateString, formatDateObj } from "../utils/dateUtils";
+import { DayPanel } from "./DayPanel";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface Props {
 	presenterFactory: (listener: HomepageListener) => HomepagePresenter;
 }
-
-import { formatDisplayDate, generateDateRangeArray } from "../utils/dateUtils";
-import { DayPanel } from "./DayPanel";
 
 type PendingEdit = {
 	name: string;
@@ -78,16 +79,16 @@ function Homepage(props: Props) {
 		if (!trip) return;
 		const newDateRange = generateDateRangeArray(editStartDate, editEndDate);
 		const newDateSet = new Set(newDateRange);
-		
+
 		const datesWithEvents = new Set(items.map((i) => i.day));
 		const potentiallyDeletedDates = Array.from(datesWithEvents).filter((d) => !newDateSet.has(d));
-		
+
 		if (potentiallyDeletedDates.length > 0) {
 			setPendingTripEdit({
 				name: trip.name,
 				start: editStartDate,
 				end: editEndDate,
-				potentiallyDeletedDates
+				potentiallyDeletedDates,
 			});
 		} else {
 			presenterRef.current?.updateTrip(trip.name, editStartDate, editEndDate);
@@ -97,9 +98,9 @@ function Homepage(props: Props) {
 
 	function confirmDeleteEvents() {
 		if (!pendingTripEdit) return;
-		pendingTripEdit.potentiallyDeletedDates.forEach(date => {
-			const itemsToDelete = items.filter(i => i.day === date);
-			itemsToDelete.forEach(i => presenterRef.current?.removeItem(i.id));
+		pendingTripEdit.potentiallyDeletedDates.forEach((date) => {
+			const itemsToDelete = items.filter((i) => i.day === date);
+			itemsToDelete.forEach((i) => presenterRef.current?.removeItem(i.id));
 		});
 		presenterRef.current?.updateTrip(pendingTripEdit.name, pendingTripEdit.start, pendingTripEdit.end);
 		setIsEditingTripDates(false);
@@ -155,19 +156,28 @@ function Homepage(props: Props) {
 						<div className="input-group">
 							<div className="input-bar">
 								<span className="input-label">From:</span>
-								<input
+								<DatePicker
 									className="date-input text-input"
-									type="date"
-									value={startDate}
-									onChange={(e) => setStartDate(e.target.value)}
+									selected={parseDateString(startDate)}
+									onChange={(date) => setStartDate(formatDateObj(date))}
+									selectsStart
+									startDate={parseDateString(startDate)}
+									endDate={parseDateString(endDate)}
+									dateFormat="MM/dd/yyyy"
+									placeholderText="Select date"
 								/>
 								<div className="divider" />
 								<span className="input-label">To:</span>
-								<input
+								<DatePicker
 									className="date-input text-input"
-									type="date"
-									value={endDate}
-									onChange={(e) => setEndDate(e.target.value)}
+									selected={parseDateString(endDate)}
+									onChange={(date) => setEndDate(formatDateObj(date))}
+									selectsEnd
+									startDate={parseDateString(startDate)}
+									endDate={parseDateString(endDate)}
+									minDate={parseDateString(startDate) || undefined}
+									dateFormat="MM/dd/yyyy"
+									placeholderText="Select date"
 								/>
 							</div>
 						</div>
@@ -185,7 +195,14 @@ function Homepage(props: Props) {
 							{!isEditingTripName ? (
 								<h1 className="card-title">
 									{trip.name}
-									<button className="edit-icon-btn" onClick={startEditTripName} title="Edit Trip Name" aria-label="Edit Trip Name">✎</button>
+									<button
+										className="edit-icon-btn"
+										onClick={startEditTripName}
+										title="Edit Trip Name"
+										aria-label="Edit Trip Name"
+									>
+										✎
+									</button>
 								</h1>
 							) : (
 								<div className="edit-trip-form" style={{ marginBottom: "16px" }}>
@@ -201,15 +218,21 @@ function Homepage(props: Props) {
 										</div>
 									</div>
 									<div className="edit-actions">
-										<button 
-											className="add-btn" 
+										<button
+											className="add-btn"
 											style={{ padding: "8px 16px" }}
 											onClick={saveTripNameEdit}
 											disabled={!editTripName}
 										>
 											Save
 										</button>
-										<button className="add-btn edit-cancel-btn" style={{ padding: "8px 16px" }} onClick={() => setIsEditingTripName(false)}>Cancel</button>
+										<button
+											className="add-btn edit-cancel-btn"
+											style={{ padding: "8px 16px" }}
+											onClick={() => setIsEditingTripName(false)}
+										>
+											Cancel
+										</button>
 									</div>
 								</div>
 							)}
@@ -217,39 +240,61 @@ function Homepage(props: Props) {
 							{!isEditingTripDates ? (
 								<p className="card-subtitle">
 									{formatDisplayDate(trip.startDate)} — {formatDisplayDate(trip.endDate)}
-									<button className="edit-icon-btn" onClick={startEditTripDates} title="Edit Trip Dates" aria-label="Edit Trip Dates">✎</button>
+									<button
+										className="edit-icon-btn"
+										onClick={startEditTripDates}
+										title="Edit Trip Dates"
+										aria-label="Edit Trip Dates"
+									>
+										✎
+									</button>
 								</p>
 							) : (
 								<div className="edit-trip-form">
 									<div className="input-group">
 										<div className="input-bar">
 											<span className="input-label">From:</span>
-											<input
+											<DatePicker
 												className="date-input text-input"
-												type="date"
-												value={editStartDate}
-												onChange={(e) => setEditStartDate(e.target.value)}
+												selected={parseDateString(editStartDate)}
+												onChange={(date) => setEditStartDate(formatDateObj(date))}
+												selectsStart
+												startDate={parseDateString(editStartDate)}
+												endDate={parseDateString(editEndDate)}
+												dateFormat="MM/dd/yyyy"
+												placeholderText="Select date"
 											/>
 											<div className="divider" />
 											<span className="input-label">To:</span>
-											<input
+											<DatePicker
 												className="date-input text-input"
-												type="date"
-												value={editEndDate}
-												onChange={(e) => setEditEndDate(e.target.value)}
+												selected={parseDateString(editEndDate)}
+												onChange={(date) => setEditEndDate(formatDateObj(date))}
+												selectsEnd
+												startDate={parseDateString(editStartDate)}
+												endDate={parseDateString(editEndDate)}
+												minDate={parseDateString(editStartDate) || undefined}
+												dateFormat="MM/dd/yyyy"
+												placeholderText="Select date"
 											/>
 										</div>
 									</div>
 									<div className="edit-actions">
-										<button 
-											className="add-btn" 
+										<button
+											className="add-btn"
 											style={{ padding: "8px 16px" }}
 											onClick={saveTripDatesEdit}
 											disabled={!editStartDate || !editEndDate || editStartDate > editEndDate}
 										>
 											Save
 										</button>
-										<button className="add-btn edit-cancel-btn" style={{ padding: "8px 16px" }} onClick={() => setIsEditingTripDates(false)}>Cancel</button>
+										<button
+											className="add-btn edit-cancel-btn"
+											style={{ padding: "8px 16px" }}
+											onClick={() => setIsEditingTripDates(false)}
+										>
+											Cancel
+										</button>
 									</div>
 								</div>
 							)}
@@ -283,18 +328,31 @@ function Homepage(props: Props) {
 					<div className="modal-card">
 						<h2 className="modal-title">Warning: Events Outside Range</h2>
 						<p className="modal-text">
-							You are trying to change the trip dates, but there are still events on the following dates that fall outside the new range:
+							You are trying to change the trip dates, but there are still events on the following dates
+							that fall outside the new range:
 						</p>
 						<ul className="modal-list">
-							{pendingTripEdit.potentiallyDeletedDates.sort().map(d => (
+							{pendingTripEdit.potentiallyDeletedDates.sort().map((d) => (
 								<li key={d}>{formatDisplayDate(d)}</li>
 							))}
 						</ul>
-						<p className="modal-text" style={{ fontWeight: 600, marginTop: '20px' }}>What would you like to do?</p>
+						<p className="modal-text" style={{ fontWeight: 600, marginTop: "20px" }}>
+							What would you like to do?
+						</p>
 						<div className="modal-actions">
-							<button className="add-btn" style={{ background: 'var(--red)', boxShadow: 'none' }} onClick={confirmDeleteEvents}>Delete Events</button>
-							<button className="add-btn edit-keep-btn" onClick={confirmKeepEvents}>Keep Events</button>
-							<button className="add-btn edit-cancel-btn" onClick={() => setPendingTripEdit(null)}>Cancel</button>
+							<button
+								className="add-btn"
+								style={{ background: "var(--red)", boxShadow: "none" }}
+								onClick={confirmDeleteEvents}
+							>
+								Delete Events
+							</button>
+							<button className="add-btn edit-keep-btn" onClick={confirmKeepEvents}>
+								Keep Events
+							</button>
+							<button className="add-btn edit-cancel-btn" onClick={() => setPendingTripEdit(null)}>
+								Cancel
+							</button>
 						</div>
 					</div>
 				</div>
