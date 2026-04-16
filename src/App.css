@@ -584,6 +584,166 @@ body {
 	text-decoration-color: var(--orange-light);
 }
 
+/* ── Category select (in input bars) ────────── */
+.category-select {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	border: none;
+	background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a4030' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+	font-family: inherit;
+	font-size: 0.88rem;
+	color: var(--text-muted);
+	padding: 6px 28px 6px 4px;
+	outline: none;
+	cursor: pointer;
+	max-width: 140px;
+}
+
+.category-select:focus {
+	color: var(--text);
+}
+
+/* Full-height variant used inside edit-modal input-bar rows */
+.category-select--full {
+	flex: 1;
+	padding: 13px 32px 13px 18px;
+	font-size: 0.95rem;
+	color: var(--text);
+	max-width: none;
+	background-position: right 12px center;
+}
+
+/* ── Color swatches ──────────────────────────── */
+.color-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.color-swatch {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 2.5px solid transparent;
+	cursor: pointer;
+	padding: 0;
+	outline: none;
+	transition: transform 0.12s, border-color 0.12s;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.color-swatch:hover {
+	transform: scale(1.15);
+}
+
+.color-swatch--selected {
+	border-color: var(--text);
+	box-shadow: 0 0 0 2px white inset, 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Category management modal ───────────────── */
+.cat-list {
+	margin-bottom: 20px;
+}
+
+.cat-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--sand);
+}
+
+.cat-row:last-child {
+	border-bottom: none;
+}
+
+.cat-row--editing {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 10px;
+	padding: 12px;
+	background: var(--off-white);
+	border-radius: var(--radius-sm);
+	border-bottom: none;
+	margin-bottom: 4px;
+}
+
+.cat-dot {
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.cat-name {
+	flex: 1;
+	font-size: 0.95rem;
+	font-weight: 600;
+	color: var(--text);
+}
+
+.cat-row-actions {
+	display: flex;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.cat-name-input {
+	padding: 8px 12px;
+	border-radius: var(--radius-sm);
+	border: 2px solid var(--sand);
+	background: var(--white);
+	font-size: 0.95rem;
+}
+
+.cat-add-form {
+	border-top: 2px solid var(--sand);
+	padding-top: 20px;
+	margin-top: 4px;
+}
+
+.cat-add-label {
+	font-size: 0.85rem;
+	font-weight: 700;
+	color: var(--text-muted);
+	margin-bottom: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* ── Category legend (trip view) ─────────────── */
+.cat-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	margin-bottom: 20px;
+	padding: 12px 18px;
+	background: var(--off-white);
+	border: 1.5px solid var(--sand);
+	border-radius: var(--radius-md);
+}
+
+.cat-legend-item {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 0.82rem;
+	font-weight: 700;
+	color: var(--text-muted);
+	letter-spacing: 0.01em;
+}
+
+.cat-legend-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
 /* ── Datepicker overrides ────────────────────── */
 .react-datepicker-wrapper {
 	width: auto;

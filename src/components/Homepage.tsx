@@ -3,6 +3,7 @@ import "../App.css";
 import type { AgendaItem, Trip, HomepageListener } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
 import { formatDisplayDate, generateDateRangeArray, parseDateString, formatDateObj } from "../utils/dateUtils";
+import { CATEGORY_COLORS } from "../utils/categoryColors";
 import { DayPanel } from "./DayPanel";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -38,6 +39,13 @@ function Homepage(props: Props) {
 	const [draggedId, setDraggedId] = useState<number | null>(null);
 	const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
+	// Category state
+	const [categories, setCategories] = useState<{ id: number; name: string; color: string }[]>([]);
+	const [isManagingCategories, setIsManagingCategories] = useState(false);
+	const [newCatName, setNewCatName] = useState("");
+	const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
+	const [editingCat, setEditingCat] = useState<{ id: number; name: string; color: string } | null>(null);
+
 	// Edit Trip State
 	const [isEditingTripName, setIsEditingTripName] = useState(false);
 	const [editTripName, setEditTripName] = useState("");
@@ -51,6 +59,7 @@ function Homepage(props: Props) {
 				setExpandedDays(new Set()); // Empty by default
 			}
 		},
+		setCategories: (newCategories) => setCategories(newCategories),
 	};
 
 	const presenterRef = useRef<HomepagePresenter | null>(null);
@@ -278,6 +287,17 @@ function Homepage(props: Props) {
 							</p>
 						</div>
 
+						{categories.length > 0 && (
+							<div className="cat-legend">
+								{categories.map((cat) => (
+									<div key={cat.id} className="cat-legend-item">
+										<span className="cat-legend-dot" style={{ background: cat.color }} />
+										{cat.name}
+									</div>
+								))}
+							</div>
+						)}
+
 						<div className="itinerary">
 							{agendaDays.map((dayString) => {
 								const dayItems = items.filter((i) => i.day === dayString);
@@ -292,6 +312,8 @@ function Homepage(props: Props) {
 										presenterRef={presenterRef}
 										draggedId={draggedId}
 										setDraggedId={setDraggedId}
+										categories={categories}
+										onManageCategories={() => setIsManagingCategories(true)}
 									/>
 								);
 							})}
@@ -331,6 +353,105 @@ function Homepage(props: Props) {
 							<button className="add-btn edit-cancel-btn" onClick={() => setPendingTripEdit(null)}>
 								Cancel
 							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Category Management Modal */}
+			{isManagingCategories && (
+				<div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setIsManagingCategories(false); setEditingCat(null); } }}>
+					<div className="modal-card">
+						<h2 className="modal-title">Categories</h2>
+
+						<div className="cat-list">
+							{categories.length === 0 && (
+								<p className="modal-text" style={{ marginBottom: "20px" }}>No categories yet. Create one below.</p>
+							)}
+							{categories.map((cat) =>
+								editingCat?.id === cat.id ? (
+									<div key={cat.id} className="cat-row cat-row--editing">
+										<input
+											className="text-input cat-name-input"
+											value={editingCat.name}
+											onChange={(e) => setEditingCat({ ...editingCat, name: e.target.value })}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" && editingCat.name.trim()) {
+													presenterRef.current?.updateCategory(editingCat.id, editingCat.name, editingCat.color);
+													setEditingCat(null);
+												} else if (e.key === "Escape") setEditingCat(null);
+											}}
+											autoFocus
+										/>
+										<div className="color-swatches">
+											{CATEGORY_COLORS.map((c) => (
+												<button key={c}
+													className={`color-swatch${editingCat.color === c ? " color-swatch--selected" : ""}`}
+													style={{ background: c }}
+													onClick={() => setEditingCat({ ...editingCat, color: c })}
+												/>
+											))}
+										</div>
+										<div className="cat-row-actions">
+											<button className="add-btn" style={{ padding: "6px 14px" }}
+												onClick={() => { presenterRef.current?.updateCategory(editingCat.id, editingCat.name, editingCat.color); setEditingCat(null); }}
+												disabled={!editingCat.name.trim()}
+											>Save</button>
+											<button className="add-btn edit-cancel-btn" style={{ padding: "6px 14px" }}
+												onClick={() => setEditingCat(null)}
+											>Cancel</button>
+										</div>
+									</div>
+								) : (
+									<div key={cat.id} className="cat-row">
+										<span className="cat-dot" style={{ background: cat.color }} />
+										<span className="cat-name">{cat.name}</span>
+										<div className="cat-row-actions">
+											<button className="add-btn" style={{ padding: "6px 14px" }}
+												onClick={() => setEditingCat({ id: cat.id, name: cat.name, color: cat.color })}
+											>Edit</button>
+											<button className="add-btn edit-cancel-btn" style={{ padding: "6px 14px" }}
+												onClick={() => presenterRef.current?.removeCategory(cat.id)}
+											>Delete</button>
+										</div>
+									</div>
+								)
+							)}
+						</div>
+
+						<div className="cat-add-form">
+							<p className="cat-add-label">New category</p>
+							<div className="input-bar trip-name-bar" style={{ marginBottom: "12px" }}>
+								<input
+									className="text-input"
+									placeholder="Name (e.g. Meals, Transport)"
+									value={newCatName}
+									onChange={(e) => setNewCatName(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && newCatName.trim()) {
+											presenterRef.current?.addCategory(newCatName, newCatColor);
+											setNewCatName("");
+										}
+									}}
+								/>
+							</div>
+							<div className="color-swatches" style={{ marginBottom: "14px" }}>
+								{CATEGORY_COLORS.map((c) => (
+									<button key={c}
+										className={`color-swatch${newCatColor === c ? " color-swatch--selected" : ""}`}
+										style={{ background: c }}
+										onClick={() => setNewCatColor(c)}
+									/>
+								))}
+							</div>
+							<button className="add-btn" style={{ width: "100%" }}
+								onClick={() => { presenterRef.current?.addCategory(newCatName, newCatColor); setNewCatName(""); }}
+								disabled={!newCatName.trim()}
+							>Add Category</button>
+						</div>
+
+						<div className="modal-actions">
+							<button className="add-btn" onClick={() => { setIsManagingCategories(false); setEditingCat(null); }}>Done</button>
 						</div>
 					</div>
 				</div>

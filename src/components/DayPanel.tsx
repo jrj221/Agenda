@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "../App.css";
-import type { AgendaItem } from "../presenters/HomepagePresenter";
+import type { AgendaItem, Category } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
 import { formatDisplayDate, timeToMins, formatTime12h, parseDateString, formatDateObj } from "../utils/dateUtils";
 import DatePicker from "react-datepicker";
@@ -19,15 +19,25 @@ interface DayPanelProps {
 	items: AgendaItem[];
 	expanded: boolean;
 	onToggle: () => void;
-	presenterRef: React.MutableRefObject<HomepagePresenter | null>;
+	presenterRef: React.RefObject<HomepagePresenter | null>;
 	draggedId: number | null;
 	setDraggedId: (id: number | null) => void;
+	categories: Category[];
+	onManageCategories: () => void;
 }
 
-export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, draggedId, setDraggedId }: DayPanelProps) {
+function hexToRgba(hex: string, alpha: number): string {
+	const r = parseInt(hex.slice(1, 3), 16);
+	const g = parseInt(hex.slice(3, 5), 16);
+	const b = parseInt(hex.slice(5, 7), 16);
+	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, draggedId, setDraggedId, categories, onManageCategories }: DayPanelProps) {
 	const [name, setName] = useState("");
 	const [startTime, setStartTime] = useState("");
 	const [endTime, setEndTime] = useState("");
+	const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
 	const dragOffsetY = React.useRef(0);
 
 	const [editingItem, setEditingItem] = useState<AgendaItem | null>(null);
@@ -35,6 +45,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 	const [editDay, setEditDay] = useState("");
 	const [editStartTime, setEditStartTime] = useState("");
 	const [editEndTime, setEditEndTime] = useState("");
+	const [editCategoryId, setEditCategoryId] = useState<number | undefined>(undefined);
 
 	function openEdit(item: AgendaItem) {
 		setEditingItem(item);
@@ -42,19 +53,21 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 		setEditDay(item.day);
 		setEditStartTime(item.startTime);
 		setEditEndTime(item.endTime);
+		setEditCategoryId(item.categoryId);
 	}
 
 	function saveItemEdit() {
 		if (!editingItem) return;
-		presenterRef.current?.updateItemFull(editingItem.id, editName, editDay, editStartTime, editEndTime);
+		presenterRef.current?.updateItemFull(editingItem.id, editName, editDay, editStartTime, editEndTime, editCategoryId);
 		setEditingItem(null);
 	}
 
 	function addItem() {
-		presenterRef.current?.addItem(name, dayString, startTime, endTime);
+		presenterRef.current?.addItem(name, dayString, startTime, endTime, categoryId);
 		setName("");
 		setStartTime("");
 		setEndTime("");
+		setCategoryId(undefined);
 	}
 
 	function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -190,6 +203,25 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 								value={endTime}
 								onChange={(e) => setEndTime(e.target.value)}
 							/>
+							<div className="divider" />
+							<select
+								className="category-select"
+								value={categoryId ?? ""}
+								onChange={(e) => {
+									if (e.target.value === "manage") {
+										onManageCategories();
+									} else {
+										setCategoryId(e.target.value ? Number(e.target.value) : undefined);
+									}
+								}}
+							>
+								<option value="">No category</option>
+								{categories.map((cat) => (
+									<option key={cat.id} value={cat.id}>{cat.name}</option>
+								))}
+								<option disabled>──────</option>
+								<option value="manage">{categories.length === 0 ? "Create category..." : "Manage categories..."}</option>
+							</select>
 						</div>
 						<button className="add-btn add-btn--local" onClick={addItem} disabled={name.trim() === ""}>
 							Add
@@ -212,6 +244,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 							const tabIndent = Math.min(item.tabDepth, 4) * 10;
 							const isShort = (item.endMin - item.startMin) < 90;
 							const timeLabel = `${formatTime12h(item.startTime)} – ${formatTime12h(item.endTime)}`;
+							const category = categories.find((c) => c.id === item.categoryId);
 							return (
 								<div
 									key={item.id}
@@ -230,6 +263,10 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 										left: `calc(${item.leftPercent}% + ${tabIndent}px)`,
 										width: `calc(${item.widthPercent}% - ${tabIndent + 4}px)`,
 										zIndex: draggedId === item.id ? 9999 : item.startMin,
+										...(category ? {
+											borderLeft: `4px solid ${category.color}`,
+											background: hexToRgba(category.color, 0.13),
+										} : {}),
 									}}
 								>
 									<div className="event-block-content">
@@ -300,6 +337,27 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 									value={editEndTime}
 									onChange={(e) => setEditEndTime(e.target.value)}
 								/>
+							</div>
+							<div className="input-bar">
+								<span className="input-label">Category:</span>
+								<select
+									className="category-select category-select--full"
+									value={editCategoryId ?? ""}
+									onChange={(e) => {
+										if (e.target.value === "manage") {
+											onManageCategories();
+										} else {
+											setEditCategoryId(e.target.value ? Number(e.target.value) : undefined);
+										}
+									}}
+								>
+									<option value="">No category</option>
+									{categories.map((cat) => (
+										<option key={cat.id} value={cat.id}>{cat.name}</option>
+									))}
+									<option disabled>──────</option>
+									<option value="manage">{categories.length === 0 ? "Create category..." : "Manage categories..."}</option>
+								</select>
 							</div>
 						</div>
 						<div className="modal-actions">

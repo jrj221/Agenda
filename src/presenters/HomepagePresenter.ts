@@ -1,12 +1,19 @@
 import { CommandHistory } from "../commands/Command";
 import { AddItemCommand, RemoveItemCommand, EditItemCommand, MoveItemCommand } from "../commands/AgendaCommands";
 
+export interface Category {
+	id: number;
+	name: string;
+	color: string; // hex
+}
+
 export interface AgendaItem {
 	id: number;
 	name: string;
 	day: string;
 	startTime: string; // "HH:MM"
 	endTime: string;   // "HH:MM"
+	categoryId?: number;
 }
 
 export interface Trip {
@@ -19,12 +26,14 @@ export interface Trip {
 export interface HomepageListener {
 	setItems: (items: AgendaItem[]) => void;
 	setTrip: (trip: Trip | null) => void;
+	setCategories: (categories: Category[]) => void;
 }
 
 export class HomepagePresenter {
 	private listener: HomepageListener;
 	private _items: AgendaItem[] = [];
 	private _trip: Trip | null = null;
+	private _categories: Category[] = [];
 	private history = new CommandHistory();
 
 	constructor(listener: HomepageListener) {
@@ -37,6 +46,10 @@ export class HomepagePresenter {
 
 	get trip(): Trip | null {
 		return this._trip;
+	}
+
+	get categories(): Category[] {
+		return this._categories;
 	}
 
 	// Applies a new items array: sorts and notifies the view.
@@ -54,6 +67,8 @@ export class HomepagePresenter {
 		});
 	}
 
+	// ── Trip ────────────────────────────────────────
+
 	createTrip(name: string, startDate: string, endDate: string): void {
 		const trimmedName = name.trim();
 		if (!trimmedName || !startDate || !endDate) return;
@@ -70,7 +85,9 @@ export class HomepagePresenter {
 		this.listener.setTrip(this._trip);
 	}
 
-	addItem(name: string, day: string, startTime: string, endTime: string): void {
+	// ── Items ────────────────────────────────────────
+
+	addItem(name: string, day: string, startTime: string, endTime: string, categoryId?: number): void {
 		const trimmed = name.trim();
 		if (!trimmed) return;
 
@@ -88,7 +105,7 @@ export class HomepagePresenter {
 		}
 
 		const before = [...this._items];
-		const newItem: AgendaItem = { id: Date.now(), name: trimmed, day, startTime: s, endTime: e };
+		const newItem: AgendaItem = { id: Date.now(), name: trimmed, day, startTime: s, endTime: e, categoryId };
 		const after = [...before, newItem];
 
 		this.history.run(new AddItemCommand(before, after, (items) => this.applyItems(items)));
@@ -120,8 +137,8 @@ export class HomepagePresenter {
 		this.history.run(new MoveItemCommand(before, after, (items) => this.applyItems(items)));
 	}
 
-	// Used for the edit modal (name + day + time).
-	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string): void {
+	// Used for the edit modal (name + day + time + category).
+	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string, categoryId?: number): void {
 		const trimmed = name.trim();
 		if (!trimmed) return;
 		const before = [...this._items];
@@ -129,10 +146,43 @@ export class HomepagePresenter {
 		if (idx === -1) return;
 
 		const after = [...before];
-		after[idx] = { ...after[idx], name: trimmed, day, startTime, endTime };
+		after[idx] = { ...after[idx], name: trimmed, day, startTime, endTime, categoryId };
 
 		this.history.run(new EditItemCommand(before, after, (items) => this.applyItems(items)));
 	}
+
+	// ── Categories ───────────────────────────────────
+
+	addCategory(name: string, color: string): void {
+		const trimmed = name.trim();
+		if (!trimmed || !color) return;
+		this._categories = [...this._categories, { id: Date.now(), name: trimmed, color }];
+		this.listener.setCategories(this._categories);
+	}
+
+	updateCategory(id: number, name: string, color: string): void {
+		const trimmed = name.trim();
+		if (!trimmed || !color) return;
+		const idx = this._categories.findIndex((c) => c.id === id);
+		if (idx === -1) return;
+		const next = [...this._categories];
+		next[idx] = { ...next[idx], name: trimmed, color };
+		this._categories = next;
+		this.listener.setCategories(this._categories);
+	}
+
+	removeCategory(id: number): void {
+		this._categories = this._categories.filter((c) => c.id !== id);
+		// Strip the category from any items that used it
+		const affected = this._items.some((i) => i.categoryId === id);
+		if (affected) {
+			this._items = this._items.map((i) => i.categoryId === id ? { ...i, categoryId: undefined } : i);
+			this.listener.setItems(this._items);
+		}
+		this.listener.setCategories(this._categories);
+	}
+
+	// ── Undo / Redo ──────────────────────────────────
 
 	undo(): void { this.history.undo(); }
 	redo(): void { this.history.redo(); }
