@@ -1,22 +1,9 @@
-<<<<<<< HEAD
-# Logs
-logs
-*.log
-=======
 # Dependencies
 node_modules/
 
 # Build outputs
 dist/
-build/
-out/
-.next/
-.nuxt/
-.svelte-kit/
-coverage/
-
-# TypeScript
-*.tsbuildinfo
+dist-ssr/
 
 # Environment variables
 .env
@@ -24,45 +11,25 @@ coverage/
 !.env.example
 
 # Logs
->>>>>>> 80d5ffea2ff61b79bef06b8b3cd78d0c368c2db3
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-<<<<<<< HEAD
 lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-=======
 
 # OS files
 .DS_Store
 Thumbs.db
 
 # Editor / IDE
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
-
-# Testing
-coverage/
-
-# Misc
-.tmp/
-.cache/
->>>>>>> 80d5ffea2ff61b79bef06b8b3cd78d0c368c2db3
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local

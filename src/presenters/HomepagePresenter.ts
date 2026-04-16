@@ -20,6 +20,8 @@ export interface AgendaItem {
 	startTime: string; // "HH:MM"
 	endTime: string;   // "HH:MM"
 	categoryId?: number;
+	notes?: string;
+	location?: string;
 }
 
 export interface Trip {
@@ -141,7 +143,7 @@ export class HomepagePresenter {
 
 	// ── Items ────────────────────────────────────────
 
-	addItem(name: string, day: string, startTime: string, endTime: string, categoryId?: number): void {
+	addItem(name: string, day: string, startTime: string, endTime: string, categoryId?: number, notes?: string, location?: string): void {
 		const trimmed = name.trim();
 		if (!trimmed) return;
 
@@ -156,7 +158,7 @@ export class HomepagePresenter {
 			e = `${String(hour < 23 ? hour + 1 : 23).padStart(2, "0")}:59`;
 		}
 
-		const newItem: AgendaItem = { id: Date.now(), name: trimmed, day, startTime: s, endTime: e, categoryId };
+		const newItem: AgendaItem = { id: Date.now(), name: trimmed, day, startTime: s, endTime: e, categoryId, notes, location };
 		this.localTransact(() => {
 			this.doc.items.push([itemMapFrom(newItem)]);
 		});
@@ -193,7 +195,7 @@ export class HomepagePresenter {
 		});
 	}
 
-	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string, categoryId?: number): void {
+	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string, categoryId?: number, notes?: string, location?: string): void {
 		const trimmed = name.trim();
 		if (!trimmed) return;
 		const idx = findIndexById(this.doc.items, id);
@@ -206,6 +208,10 @@ export class HomepagePresenter {
 			map.set("endTime", endTime);
 			if (categoryId === undefined) map.delete("categoryId");
 			else map.set("categoryId", categoryId);
+			if (notes) map.set("notes", notes);
+			else map.delete("notes");
+			if (location) map.set("location", location);
+			else map.delete("location");
 		});
 	}
 

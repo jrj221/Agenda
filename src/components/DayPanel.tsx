@@ -3,6 +3,7 @@ import "../App.css";
 import type { AgendaItem, Category } from "../presenters/HomepagePresenter";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
 import { formatDisplayDate, timeToMins, formatTime12h, parseDateString, formatDateObj } from "../utils/dateUtils";
+import { LocationAutocomplete } from "./LocationAutocomplete";
 import DatePicker from "react-datepicker";
 
 type LayoutItem = AgendaItem & {
@@ -46,6 +47,8 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 	const [editStartTime, setEditStartTime] = useState("");
 	const [editEndTime, setEditEndTime] = useState("");
 	const [editCategoryId, setEditCategoryId] = useState<number | undefined>(undefined);
+	const [editNotes, setEditNotes] = useState("");
+	const [editLocation, setEditLocation] = useState("");
 
 	function openEdit(item: AgendaItem) {
 		setEditingItem(item);
@@ -54,11 +57,13 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 		setEditStartTime(item.startTime);
 		setEditEndTime(item.endTime);
 		setEditCategoryId(item.categoryId);
+		setEditNotes(item.notes || "");
+		setEditLocation(item.location || "");
 	}
 
 	function saveItemEdit() {
 		if (!editingItem) return;
-		presenterRef.current?.updateItemFull(editingItem.id, editName, editDay, editStartTime, editEndTime, editCategoryId);
+		presenterRef.current?.updateItemFull(editingItem.id, editName, editDay, editStartTime, editEndTime, editCategoryId, editNotes || undefined, editLocation || undefined);
 		setEditingItem(null);
 	}
 
@@ -279,6 +284,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 											<>
 												<div className="event-block-time">{timeLabel}</div>
 												<div className="event-block-name">{item.name}</div>
+												{item.location && <div className="event-block-location">{item.location}</div>}
 											</>
 										)}
 									</div>
@@ -358,6 +364,21 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 									<option disabled>──────</option>
 									<option value="manage">{categories.length === 0 ? "Create category..." : "Manage categories..."}</option>
 								</select>
+							</div>
+							<div className="input-bar">
+								<span className="input-label">Location:</span>
+								<LocationAutocomplete value={editLocation} onChange={setEditLocation} />
+							</div>
+							<div className="input-bar">
+								<span className="input-label">Notes:</span>
+								<textarea
+									className="text-input"
+									placeholder="Add notes..."
+									value={editNotes}
+									onChange={(e) => setEditNotes(e.target.value)}
+									rows={3}
+									style={{ resize: "vertical", flex: 1 }}
+								/>
 							</div>
 						</div>
 						<div className="modal-actions">

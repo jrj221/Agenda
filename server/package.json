@@ -1,0 +1,11 @@
+{
+  "name": "agenda-sync-server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.20.0",
+    "yjs": "^13.6.30",
+    "y-protocols": "^1.0.6",
+    "lib0": "^0.2.99"
+  }
+}

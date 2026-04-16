@@ -2,7 +2,7 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import type { AgendaItem, Category } from "../presenters/HomepagePresenter";
 
-const SYNC_URL = "ws://localhost:1234";
+const SYNC_URL = import.meta.env.VITE_SYNC_URL || "ws://localhost:1234";
 
 // Per-trip Yjs document. The shared types are field-level Y.Maps
 // inside Y.Arrays so that two users editing different fields of the
@@ -85,11 +85,15 @@ export function itemMapFrom(item: AgendaItem): Y.Map<unknown> {
 	m.set("startTime", item.startTime);
 	m.set("endTime", item.endTime);
 	if (item.categoryId !== undefined) m.set("categoryId", item.categoryId);
+	if (item.notes) m.set("notes", item.notes);
+	if (item.location) m.set("location", item.location);
 	return m;
 }
 
 export function itemFromMap(m: Y.Map<unknown>): AgendaItem {
 	const cat = m.get("categoryId");
+	const notes = m.get("notes");
+	const location = m.get("location");
 	return {
 		id: m.get("id") as number,
 		name: m.get("name") as string,
@@ -97,6 +101,8 @@ export function itemFromMap(m: Y.Map<unknown>): AgendaItem {
 		startTime: m.get("startTime") as string,
 		endTime: m.get("endTime") as string,
 		categoryId: typeof cat === "number" ? cat : undefined,
+		notes: typeof notes === "string" ? notes : undefined,
+		location: typeof location === "string" ? location : undefined,
 	};
 }
 
