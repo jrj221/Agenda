@@ -9,6 +9,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 interface Props {
+	tripId: string;
 	presenterFactory: (listener: HomepageListener) => HomepagePresenter;
 }
 
@@ -66,6 +67,16 @@ function Homepage(props: Props) {
 	if (!presenterRef.current) {
 		presenterRef.current = props.presenterFactory(listener);
 	}
+
+	useEffect(() => {
+		// Reset the ref on cleanup so the next render rebuilds the presenter
+		// with fresh Y.Doc observers. Required because React 19 StrictMode
+		// fires this cleanup once in dev without truly unmounting.
+		return () => {
+			presenterRef.current?.dispose();
+			presenterRef.current = null;
+		};
+	}, []);
 
 	useEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
@@ -161,6 +172,17 @@ function Homepage(props: Props) {
 			{/* Header */}
 			<header className="header">
 				<span className="logo">Agenda</span>
+				<span style={{ marginLeft: "auto", fontSize: "0.85rem", opacity: 0.75 }}>
+					Trip code: <code style={{ fontFamily: "monospace", marginRight: 8 }}>{props.tripId}</code>
+					<button
+						className="add-btn"
+						style={{ padding: "4px 10px", fontSize: "0.8rem" }}
+						onClick={() => navigator.clipboard?.writeText(window.location.href)}
+						title="Copy shareable link"
+					>
+						Copy link
+					</button>
+				</span>
 			</header>
 
 			{/* Main */}
@@ -266,7 +288,7 @@ function Homepage(props: Props) {
 								</div>
 							)}
 
-							<p className="card-subtitle">
+							<div className="card-subtitle">
 								<DatePicker
 									selected={parseDateString(trip.startDate)}
 									onChange={handleStartDateChange}
@@ -284,7 +306,7 @@ function Homepage(props: Props) {
 									portalId="datepicker-portal"
 									customInput={<DateEditButton displayText={formatDisplayDate(trip.endDate)} />}
 								/>
-							</p>
+							</div>
 						</div>
 
 						{categories.length > 0 && (

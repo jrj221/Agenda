@@ -1,5 +1,11 @@
-import { CommandHistory } from "../commands/Command";
-import { AddItemCommand, RemoveItemCommand, EditItemCommand, MoveItemCommand } from "../commands/AgendaCommands";
+import {
+	itemMapFrom,
+	itemFromMap,
+	categoryMapFrom,
+	categoryFromMap,
+	findIndexById,
+	type TripDoc,
+} from "../sync/ydoc";
 
 export interface Category {
 	id: number;
@@ -31,58 +37,106 @@ export interface HomepageListener {
 
 export class HomepagePresenter {
 	private listener: HomepageListener;
-	private _items: AgendaItem[] = [];
-	private _trip: Trip | null = null;
-	private _categories: Category[] = [];
-	private history = new CommandHistory();
+	private doc: TripDoc;
+	private disposers: Array<() => void> = [];
 
-	constructor(listener: HomepageListener) {
+	constructor(listener: HomepageListener, doc: TripDoc) {
 		this.listener = listener;
+		this.doc = doc;
+
+		// Whenever the shared types change — locally OR from a remote peer —
+		// re-derive plain JS snapshots and push them into React state.
+		const onItems = () => this.emitItems();
+		const onCategories = () => this.emitCategories();
+		const onTrip = () => this.emitTrip();
+		this.doc.items.observeDeep(onItems);
+		this.doc.categories.observeDeep(onCategories);
+		this.doc.trip.observe(onTrip);
+		this.disposers.push(
+			() => this.doc.items.unobserveDeep(onItems),
+			() => this.doc.categories.unobserveDeep(onCategories),
+			() => this.doc.trip.unobserve(onTrip),
+		);
+
+		this.emitItems();
+		this.emitCategories();
+		this.emitTrip();
 	}
 
-	get items(): AgendaItem[] {
-		return this._items;
+	dispose(): void {
+		for (const d of this.disposers) d();
+		this.disposers = [];
 	}
 
-	get trip(): Trip | null {
-		return this._trip;
+	// Wraps a mutation so UndoManager will track it as "this user's edit".
+	private localTransact(fn: () => void): void {
+		this.doc.ydoc.transact(fn, this.doc.localOrigin);
 	}
 
-	get categories(): Category[] {
-		return this._categories;
+	// Mutations that should not be undoable (matches original behavior for
+	// category edits and bulk deletes tied to trip date changes).
+	private silentTransact(fn: () => void): void {
+		this.doc.ydoc.transact(fn);
 	}
 
-	// Applies a new items array: sorts and notifies the view.
-	// All command execute/undo paths go through here.
-	private applyItems(items: AgendaItem[]): void {
-		this._items = [...items];
-		this.sortItems();
-		this.listener.setItems(this._items);
-	}
-
-	private sortItems(): void {
-		this._items.sort((a, b) => {
+	private emitItems(): void {
+		const items = this.doc.items.toArray().map(itemFromMap);
+		items.sort((a, b) => {
 			if (a.day !== b.day) return a.day.localeCompare(b.day);
 			return a.startTime.localeCompare(b.startTime);
 		});
+		this.listener.setItems(items);
+	}
+
+	private emitCategories(): void {
+		this.listener.setCategories(this.doc.categories.toArray().map(categoryFromMap));
+	}
+
+	private emitTrip(): void {
+		this.listener.setTrip(this.readTrip());
+	}
+
+	private readTrip(): Trip | null {
+		if (!this.doc.trip.has("name")) return null;
+		return {
+			name: this.doc.trip.get("name") as string,
+			startDate: this.doc.trip.get("startDate") as string,
+			endDate: this.doc.trip.get("endDate") as string,
+		};
+	}
+
+	get items(): AgendaItem[] {
+		return this.doc.items.toArray().map(itemFromMap);
+	}
+
+	get trip(): Trip | null {
+		return this.readTrip();
+	}
+
+	get categories(): Category[] {
+		return this.doc.categories.toArray().map(categoryFromMap);
 	}
 
 	// ── Trip ────────────────────────────────────────
 
 	createTrip(name: string, startDate: string, endDate: string): void {
-		const trimmedName = name.trim();
-		if (!trimmedName || !startDate || !endDate) return;
-
-		this._trip = { name: trimmedName, startDate, endDate };
-		this.listener.setTrip(this._trip);
+		const trimmed = name.trim();
+		if (!trimmed || !startDate || !endDate) return;
+		this.silentTransact(() => {
+			this.doc.trip.set("name", trimmed);
+			this.doc.trip.set("startDate", startDate);
+			this.doc.trip.set("endDate", endDate);
+		});
 	}
 
 	updateTrip(name: string, startDate: string, endDate: string): void {
-		const trimmedName = name.trim();
-		if (!trimmedName || !startDate || !endDate || !this._trip) return;
-
-		this._trip = { name: trimmedName, startDate, endDate };
-		this.listener.setTrip(this._trip);
+		const trimmed = name.trim();
+		if (!trimmed || !startDate || !endDate || !this.doc.trip.has("name")) return;
+		this.silentTransact(() => {
+			this.doc.trip.set("name", trimmed);
+			this.doc.trip.set("startDate", startDate);
+			this.doc.trip.set("endDate", endDate);
+		});
 	}
 
 	// ── Items ────────────────────────────────────────
@@ -93,62 +147,66 @@ export class HomepagePresenter {
 
 		let s = startTime;
 		let e = endTime;
-
 		if (!s || !e) {
 			const now = new Date();
 			let hour = now.getHours();
 			if (now.getMinutes() > 30) hour++;
 			if (hour > 23) hour = 23;
-
 			s = `${String(hour).padStart(2, "0")}:00`;
 			e = `${String(hour < 23 ? hour + 1 : 23).padStart(2, "0")}:59`;
 		}
 
-		const before = [...this._items];
 		const newItem: AgendaItem = { id: Date.now(), name: trimmed, day, startTime: s, endTime: e, categoryId };
-		const after = [...before, newItem];
-
-		this.history.run(new AddItemCommand(before, after, (items) => this.applyItems(items)));
+		this.localTransact(() => {
+			this.doc.items.push([itemMapFrom(newItem)]);
+		});
 	}
 
 	removeItem(id: number): void {
-		const before = [...this._items];
-		const after = before.filter((i) => i.id !== id);
-		this.history.run(new RemoveItemCommand(before, after, (items) => this.applyItems(items)));
-	}
-
-	// Removes multiple items without adding to undo history.
-	// Used for bulk deletions tied to trip-date changes, which are themselves not undoable.
-	removeItemsBulk(ids: number[]): void {
-		const idSet = new Set(ids);
-		this._items = this._items.filter((i) => !idSet.has(i.id));
-		this.listener.setItems(this._items);
-	}
-
-	// Used for drag-drop repositioning (day + time only).
-	updateItem(id: number, day: string, startTime: string, endTime: string): void {
-		const before = [...this._items];
-		const idx = before.findIndex((i) => i.id === id);
+		const idx = findIndexById(this.doc.items, id);
 		if (idx === -1) return;
-
-		const after = [...before];
-		after[idx] = { ...after[idx], day, startTime, endTime };
-
-		this.history.run(new MoveItemCommand(before, after, (items) => this.applyItems(items)));
+		this.localTransact(() => {
+			this.doc.items.delete(idx, 1);
+		});
 	}
 
-	// Used for the edit modal (name + day + time + category).
+	removeItemsBulk(ids: number[]): void {
+		if (ids.length === 0) return;
+		const idSet = new Set(ids);
+		// Walk the list once, delete from the back so indices remain stable.
+		this.silentTransact(() => {
+			for (let i = this.doc.items.length - 1; i >= 0; i--) {
+				const itemId = this.doc.items.get(i).get("id") as number;
+				if (idSet.has(itemId)) this.doc.items.delete(i, 1);
+			}
+		});
+	}
+
+	updateItem(id: number, day: string, startTime: string, endTime: string): void {
+		const idx = findIndexById(this.doc.items, id);
+		if (idx === -1) return;
+		const map = this.doc.items.get(idx);
+		this.localTransact(() => {
+			map.set("day", day);
+			map.set("startTime", startTime);
+			map.set("endTime", endTime);
+		});
+	}
+
 	updateItemFull(id: number, name: string, day: string, startTime: string, endTime: string, categoryId?: number): void {
 		const trimmed = name.trim();
 		if (!trimmed) return;
-		const before = [...this._items];
-		const idx = before.findIndex((i) => i.id === id);
+		const idx = findIndexById(this.doc.items, id);
 		if (idx === -1) return;
-
-		const after = [...before];
-		after[idx] = { ...after[idx], name: trimmed, day, startTime, endTime, categoryId };
-
-		this.history.run(new EditItemCommand(before, after, (items) => this.applyItems(items)));
+		const map = this.doc.items.get(idx);
+		this.localTransact(() => {
+			map.set("name", trimmed);
+			map.set("day", day);
+			map.set("startTime", startTime);
+			map.set("endTime", endTime);
+			if (categoryId === undefined) map.delete("categoryId");
+			else map.set("categoryId", categoryId);
+		});
 	}
 
 	// ── Categories ───────────────────────────────────
@@ -156,36 +214,40 @@ export class HomepagePresenter {
 	addCategory(name: string, color: string): void {
 		const trimmed = name.trim();
 		if (!trimmed || !color) return;
-		this._categories = [...this._categories, { id: Date.now(), name: trimmed, color }];
-		this.listener.setCategories(this._categories);
+		this.silentTransact(() => {
+			this.doc.categories.push([categoryMapFrom({ id: Date.now(), name: trimmed, color })]);
+		});
 	}
 
 	updateCategory(id: number, name: string, color: string): void {
 		const trimmed = name.trim();
 		if (!trimmed || !color) return;
-		const idx = this._categories.findIndex((c) => c.id === id);
+		const idx = findIndexById(this.doc.categories, id);
 		if (idx === -1) return;
-		const next = [...this._categories];
-		next[idx] = { ...next[idx], name: trimmed, color };
-		this._categories = next;
-		this.listener.setCategories(this._categories);
+		const map = this.doc.categories.get(idx);
+		this.silentTransact(() => {
+			map.set("name", trimmed);
+			map.set("color", color);
+		});
 	}
 
 	removeCategory(id: number): void {
-		this._categories = this._categories.filter((c) => c.id !== id);
-		// Strip the category from any items that used it
-		const affected = this._items.some((i) => i.categoryId === id);
-		if (affected) {
-			this._items = this._items.map((i) => i.categoryId === id ? { ...i, categoryId: undefined } : i);
-			this.listener.setItems(this._items);
-		}
-		this.listener.setCategories(this._categories);
+		const idx = findIndexById(this.doc.categories, id);
+		if (idx === -1) return;
+		this.silentTransact(() => {
+			this.doc.categories.delete(idx, 1);
+			// Strip the now-dangling categoryId from any items that used it.
+			for (let i = 0; i < this.doc.items.length; i++) {
+				const m = this.doc.items.get(i);
+				if (m.get("categoryId") === id) m.delete("categoryId");
+			}
+		});
 	}
 
 	// ── Undo / Redo ──────────────────────────────────
 
-	undo(): void { this.history.undo(); }
-	redo(): void { this.history.redo(); }
-	get canUndo(): boolean { return this.history.canUndo; }
-	get canRedo(): boolean { return this.history.canRedo; }
+	undo(): void { this.doc.undoManager.undo(); }
+	redo(): void { this.doc.undoManager.redo(); }
+	get canUndo(): boolean { return this.doc.undoManager.undoStack.length > 0; }
+	get canRedo(): boolean { return this.doc.undoManager.redoStack.length > 0; }
 }
