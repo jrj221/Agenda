@@ -1036,6 +1036,35 @@ body {
 	background: var(--sand);
 }
 
+.side-panel-trip-item {
+	position: relative;
+}
+
+.side-panel-trip-delete {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	padding: 4px 6px;
+	border-radius: 4px;
+	opacity: 0;
+	transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.side-panel-trip-item:hover .side-panel-trip-delete {
+	opacity: 1;
+}
+
+.side-panel-trip-delete:hover {
+	color: var(--red);
+	background: rgba(232, 50, 26, 0.1);
+}
+
 .side-panel-trip-name {
 	font-size: 0.9rem;
 	font-weight: 600;

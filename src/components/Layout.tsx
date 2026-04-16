@@ -4,7 +4,7 @@ import { TripGate } from "./TripGate";
 import Homepage from "./Homepage";
 import { HomepagePresenter } from "../presenters/HomepagePresenter";
 import { acquireTripDoc, releaseTripDoc, type TripDoc } from "../sync/ydoc";
-import { getSavedTrips, saveTrip, type SavedTrip } from "../utils/tripStore";
+import { getSavedTrips, saveTrip, removeTrip, type SavedTrip } from "../utils/tripStore";
 import { logout, type User } from "../utils/auth";
 import "../App.css";
 
@@ -64,6 +64,11 @@ export function Layout({ user, onLogout }: LayoutProps) {
 				onSelectTrip={navigateToTrip}
 				onGoHome={goHome}
 				onLogout={() => { logout(); onLogout(); }}
+			onDeleteTrip={(id) => {
+				removeTrip(user.email, id);
+				setTrips(getSavedTrips(user.email));
+				if (tripId === id) goHome();
+			}}
 			/>
 			<div className="app-main">
 				{!tripId ? (
