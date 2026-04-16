@@ -11,6 +11,7 @@ import "react-datepicker/dist/react-datepicker.css";
 interface Props {
 	tripId: string;
 	presenterFactory: (listener: HomepageListener) => HomepagePresenter;
+	onTripNamed?: (name: string) => void;
 }
 
 type PendingEdit = {
@@ -57,7 +58,8 @@ function Homepage(props: Props) {
 		setTrip: (newTrip: Trip | null) => {
 			setTrip(newTrip);
 			if (newTrip) {
-				setExpandedDays(new Set()); // Empty by default
+				setExpandedDays(new Set());
+				props.onTripNamed?.(newTrip.name);
 			}
 		},
 		setCategories: (newCategories) => setCategories(newCategories),
@@ -168,25 +170,29 @@ function Homepage(props: Props) {
 		: [];
 
 	return (
-		<div className="page">
-			{/* Header */}
-			<header className="header">
-				<span className="logo">Agenda</span>
-				<span style={{ marginLeft: "auto", fontSize: "0.85rem", opacity: 0.75 }}>
-					Trip code: <code style={{ fontFamily: "monospace", marginRight: 8 }}>{props.tripId}</code>
-					<button
-						className="add-btn"
-						style={{ padding: "4px 10px", fontSize: "0.8rem" }}
-						onClick={() => navigator.clipboard?.writeText(window.location.href)}
-						title="Copy shareable link"
-					>
-						Copy link
-					</button>
+		<>
+			{/* Trip code bar */}
+			<div className="trip-code-bar">
+				<span className="trip-code-label">
+					Trip code: <code className="trip-code-value">{props.tripId}</code>
 				</span>
-			</header>
+				<button
+					className="trip-code-action"
+					onClick={() => navigator.clipboard?.writeText(props.tripId)}
+					title="Copy trip code"
+				>
+					Copy code
+				</button>
+				<button
+					className="trip-code-action trip-code-action--invite"
+					onClick={() => navigator.clipboard?.writeText(window.location.href)}
+					title="Copy invite link"
+				>
+					Invite a friend
+				</button>
+			</div>
 
-			{/* Main */}
-			<main className="main">
+			<div className="trip-content">
 				{!trip ? (
 					<div className="card">
 						<div className="card-header">
@@ -342,7 +348,7 @@ function Homepage(props: Props) {
 						</div>
 					</div>
 				)}
-			</main>
+			</div>
 
 			{/* Modal Overlay Component */}
 			{pendingTripEdit && (
@@ -478,7 +484,7 @@ function Homepage(props: Props) {
 					</div>
 				</div>
 			)}
-		</div>
+		</>
 	);
 }
 

@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
+import { IndexeddbPersistence } from "y-indexeddb";
 import type { AgendaItem, Category } from "../presenters/HomepagePresenter";
 
 const SYNC_URL = import.meta.env.VITE_SYNC_URL || "ws://localhost:1234";
@@ -23,13 +24,12 @@ function createTripDoc(tripId: string): TripDoc {
 	const trip = ydoc.getMap("trip");
 	const items = ydoc.getArray<Y.Map<unknown>>("items");
 	const categories = ydoc.getArray<Y.Map<unknown>>("categories");
-	// localOrigin is the sentinel for "this user's edits". UndoManager
-	// only tracks transactions tagged with it, so Cmd+Z undoes mine, not theirs.
 	const localOrigin = { local: true };
 	const undoManager = new Y.UndoManager([items, categories, trip], {
 		trackedOrigins: new Set([localOrigin]),
 	});
 	const provider = new WebsocketProvider(SYNC_URL, tripId, ydoc);
+	const idb = new IndexeddbPersistence(`agenda-trip-${tripId}`, ydoc);
 	return {
 		ydoc,
 		provider,
@@ -39,6 +39,7 @@ function createTripDoc(tripId: string): TripDoc {
 		undoManager,
 		localOrigin,
 		destroy: () => {
+			idb.destroy();
 			provider.destroy();
 			ydoc.destroy();
 		},
@@ -70,11 +71,13 @@ export function releaseTripDoc(tripId: string): void {
 	const cached = tripDocCache.get(tripId);
 	if (!cached) return;
 	cached.refs--;
-	if (cached.refs > 0) return;
-	cached.destroyTimer = window.setTimeout(() => {
-		cached.doc.destroy();
-		tripDocCache.delete(tripId);
-	}, 0);
+	// Keep docs alive — IndexedDB persists the data and the cache
+	// makes switching between trips instant. Only cancel a pending
+	// destroy timer from a StrictMode double-unmount.
+	if (cached.destroyTimer !== null) {
+		clearTimeout(cached.destroyTimer);
+		cached.destroyTimer = null;
+	}
 }
 
 export function itemMapFrom(item: AgendaItem): Y.Map<unknown> {

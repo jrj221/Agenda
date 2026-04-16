@@ -1,46 +1,13 @@
-import { useEffect, useState } from "react";
-import Homepage from "./components/Homepage";
-import { TripGate } from "./components/TripGate";
-import { HomepagePresenter } from "./presenters/HomepagePresenter";
-import { acquireTripDoc, releaseTripDoc, type TripDoc } from "./sync/ydoc";
-
-function readTripIdFromHash(): string | null {
-	const m = window.location.hash.match(/^#\/trip\/(.+)$/);
-	return m ? m[1] : null;
-}
+import { useState } from "react";
+import { AuthPage } from "./components/AuthPage";
+import { Layout } from "./components/Layout";
+import { getSession, type User } from "./utils/auth";
 
 function App() {
-	const [tripId, setTripId] = useState<string | null>(readTripIdFromHash());
+	const [user, setUser] = useState<User | null>(getSession);
 
-	useEffect(() => {
-		const onHashChange = () => setTripId(readTripIdFromHash());
-		window.addEventListener("hashchange", onHashChange);
-		return () => window.removeEventListener("hashchange", onHashChange);
-	}, []);
-
-	if (!tripId) return <TripGate />;
-	return <TripView key={tripId} tripId={tripId} />;
-}
-
-function TripView({ tripId }: { tripId: string }) {
-	const [doc, setDoc] = useState<TripDoc | null>(null);
-
-	useEffect(() => {
-		const d = acquireTripDoc(tripId);
-		setDoc(d);
-		return () => {
-			setDoc(null);
-			releaseTripDoc(tripId);
-		};
-	}, [tripId]);
-
-	if (!doc) return null;
-	return (
-		<Homepage
-			tripId={tripId}
-			presenterFactory={(listener) => new HomepagePresenter(listener, doc)}
-		/>
-	);
+	if (!user) return <AuthPage onAuth={setUser} />;
+	return <Layout user={user} onLogout={() => setUser(null)} />;
 }
 
 export default App;

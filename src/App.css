@@ -151,6 +151,7 @@ body {
 	font-family: inherit;
 	color: var(--text);
 	outline: none;
+	border-radius: inherit;
 }
 
 .text-input::placeholder {
@@ -757,6 +758,11 @@ body {
 .location-autocomplete {
 	position: relative;
 	flex: 1;
+	min-width: 0;
+}
+
+.location-autocomplete .text-input {
+	width: 100%;
 }
 
 .location-suggestions {
@@ -781,9 +787,6 @@ body {
 	font-size: 0.85rem;
 	color: var(--text);
 	cursor: pointer;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
 .location-suggestion:hover,
@@ -893,4 +896,248 @@ body {
 
 .react-datepicker__day--range-start.react-datepicker__day--range-end {
 	border-radius: 50% !important;
+}
+
+/* ── App Layout (side panel + main) ────────── */
+.app-layout {
+	display: flex;
+	min-height: 100svh;
+}
+
+.app-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* ── Side Panel ─────────────────────────────── */
+.side-panel {
+	width: 260px;
+	min-width: 260px;
+	background: var(--white);
+	border-right: 2px solid var(--sand);
+	display: flex;
+	flex-direction: column;
+	transition: width 0.2s, min-width 0.2s;
+	overflow: hidden;
+}
+
+.side-panel--collapsed {
+	width: 48px;
+	min-width: 48px;
+}
+
+.side-panel--collapsed .side-panel-content {
+	visibility: hidden;
+	opacity: 0;
+}
+
+.side-panel--collapsed .side-panel-header {
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 6px;
+}
+
+.side-panel--collapsed .side-panel-toggle {
+	margin-left: 0;
+}
+
+.side-panel-header {
+	display: flex;
+	align-items: center;
+	padding: 16px;
+	gap: 8px;
+}
+
+.side-panel-logo {
+	border: none;
+	cursor: pointer;
+	padding: 0;
+	background: linear-gradient(135deg, var(--red) 0%, var(--orange) 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	font-size: 1.6rem;
+	font-weight: 800;
+	letter-spacing: -0.5px;
+}
+
+.side-panel-toggle {
+	margin-left: auto;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	padding: 6px 8px;
+	border-radius: var(--radius-sm);
+	transition: background 0.15s;
+}
+
+.side-panel-toggle:hover {
+	background: var(--off-white);
+}
+
+.side-panel-content {
+	flex: 1;
+	padding: 0 16px 16px;
+	overflow-y: auto;
+	white-space: nowrap;
+	visibility: visible;
+	opacity: 1;
+	transition: opacity 0.15s, visibility 0.15s;
+}
+
+.side-panel-section-title {
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	margin-bottom: 12px;
+}
+
+.side-panel-empty {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+	opacity: 0.7;
+}
+
+.side-panel-trip-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.side-panel-trip-btn {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 10px 12px;
+	background: transparent;
+	border: none;
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	transition: background 0.15s;
+}
+
+.side-panel-trip-btn:hover {
+	background: var(--off-white);
+}
+
+.side-panel-trip-btn--active {
+	background: var(--sand);
+}
+
+.side-panel-trip-name {
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: var(--text);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.side-panel-logout {
+	margin-top: auto;
+	padding: 10px 12px;
+	background: transparent;
+	border: none;
+	border-top: 1px solid var(--sand);
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-align: left;
+	width: 100%;
+	transition: color 0.15s;
+}
+
+.side-panel-logout:hover {
+	color: var(--red);
+}
+
+/* ── Auth Page ──────────────────────────────── */
+.auth-toggle-btn {
+	background: none;
+	border: none;
+	color: var(--orange);
+	font-weight: 700;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: inherit;
+	padding: 0;
+	text-decoration: underline;
+	text-decoration-style: dashed;
+	text-decoration-color: transparent;
+	transition: text-decoration-color 0.2s;
+}
+
+.auth-toggle-btn:hover {
+	text-decoration-color: var(--orange-light);
+}
+
+/* ── Trip code bar (inside trip view) ───────── */
+.trip-code-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 24px;
+	font-size: 0.85rem;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--sand);
+	background: var(--off-white);
+}
+
+.trip-code-value {
+	font-family: monospace;
+	font-weight: 700;
+	color: var(--text);
+}
+
+.trip-code-action {
+	background: transparent;
+	border: 1.5px solid var(--sand);
+	border-radius: var(--radius-sm);
+	padding: 4px 12px;
+	font-family: inherit;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.trip-code-action:hover {
+	border-color: var(--orange);
+	color: var(--orange);
+}
+
+.trip-code-action--invite {
+	margin-left: auto;
+	background: linear-gradient(135deg, var(--orange) 0%, var(--red) 100%);
+	color: var(--white);
+	border: none;
+	box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+.trip-code-action--invite:hover {
+	opacity: 0.9;
+	color: var(--white);
+}
+
+.trip-content {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 24px 20px 60px;
 }
