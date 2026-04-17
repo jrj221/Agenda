@@ -12,7 +12,7 @@ type LayoutItem = AgendaItem & {
 	widthPercent: number;
 	leftPercent: number;
 	col: number;
-	tabDepth: number;
+	tabIndent: number;
 };
 
 interface DayPanelProps {
@@ -129,39 +129,73 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 			let s = timeToMins(i.startTime);
 			let e = timeToMins(i.endTime);
 			if (e <= s) e = s + 60;
-			return { ...i, startMin: s, endMin: e, col: 0, widthPercent: 100, leftPercent: 0, tabDepth: 0 } as LayoutItem;
+			return { ...i, startMin: s, endMin: e, col: 0, widthPercent: 100, leftPercent: 0, tabIndent: 0 } as LayoutItem;
 		});
 
-		// Only events with the exact same start time share horizontal space.
-		// Events that merely overlap (different start times) stack on top of each other.
-		const byStart = new Map<number, LayoutItem[]>();
-		for (const item of parsed) {
-			if (!byStart.has(item.startMin)) byStart.set(item.startMin, []);
-			byStart.get(item.startMin)!.push(item);
+		// Events ≤30min all render at the same min height, so they visually collide
+		// unless their starts are ≥30min apart. Cluster events that should share
+		// horizontal space: same start time (any length), or two short events whose
+		// rendered blocks would overlap.
+		const displayEnd = (it: LayoutItem) => it.startMin + Math.max(it.endMin - it.startMin, 30);
+		const isShortEvent = (it: LayoutItem) => it.endMin - it.startMin <= 30;
+
+		const parent = parsed.map((_, i) => i);
+		const find = (x: number): number => {
+			while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+			return x;
+		};
+		const union = (a: number, b: number) => {
+			const ra = find(a), rb = find(b);
+			if (ra !== rb) parent[ra] = rb;
+		};
+
+		for (let i = 0; i < parsed.length; i++) {
+			for (let j = i + 1; j < parsed.length; j++) {
+				const a = parsed[i], b = parsed[j];
+				if (a.startMin === b.startMin) {
+					union(i, j);
+				} else if (isShortEvent(a) && isShortEvent(b) && displayEnd(a) > b.startMin && displayEnd(b) > a.startMin) {
+					union(i, j);
+				}
+			}
 		}
 
-		for (const group of byStart.values()) {
-			const n = group.length;
-			group.forEach((item, idx) => {
-				item.col = idx;
-				item.widthPercent = 100 / n;
-				item.leftPercent = (100 / n) * idx;
+		const clusters = new Map<number, number[]>();
+		parsed.forEach((_, i) => {
+			const r = find(i);
+			if (!clusters.has(r)) clusters.set(r, []);
+			clusters.get(r)!.push(i);
+		});
+
+		for (const indices of clusters.values()) {
+			indices.sort((a, b) => parsed[a].startMin - parsed[b].startMin || parsed[a].id - parsed[b].id);
+			const n = indices.length;
+			indices.forEach((idx, col) => {
+				parsed[idx].col = col;
+				parsed[idx].widthPercent = 100 / n;
+				parsed[idx].leftPercent = (100 / n) * col;
 			});
 		}
+
+		const clusterId = new Map<number, number>();
+		parsed.forEach((item, i) => clusterId.set(item.id, find(i)));
 
 		// Sort ascending so j < i always means earlier start time.
 		parsed.sort((a, b) => a.startMin - b.startMin);
 
-		// tabDepth = how many earlier-starting events this event overlaps.
-		// Used to visually indent overlay events so they look like stacked tabs.
+		// tabIndent sums a per-parent clearance: if our start lands inside a parent's
+		// header zone (time+name lines, ~60min tall), indent enough to clear that
+		// text; otherwise just nudge over so the stack is visually distinct.
 		for (let i = 0; i < parsed.length; i++) {
-			let depth = 0;
+			let tabIndent = 0;
 			for (let j = 0; j < i; j++) {
+				if (clusterId.get(parsed[i].id) === clusterId.get(parsed[j].id)) continue;
 				if (parsed[j].startMin < parsed[i].startMin && parsed[j].endMin > parsed[i].startMin) {
-					depth++;
+					const gap = parsed[i].startMin - parsed[j].startMin;
+					tabIndent += gap < 60 ? 75 : 10;
 				}
 			}
-			parsed[i].tabDepth = depth;
+			parsed[i].tabIndent = Math.min(tabIndent, 150);
 		}
 
 		return parsed;
@@ -251,7 +285,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 						))}
 
 						{layoutItems.map((item) => {
-							const tabIndent = Math.min(item.tabDepth, 4) * 10;
+							const tabIndent = item.tabIndent;
 							const duration = item.endMin - item.startMin;
 							const isShort = duration < 105;
 							const isTiny = duration < 60;
