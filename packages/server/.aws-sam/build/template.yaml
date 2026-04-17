@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Agenda backend - DynamoDB tables, Lambdas, and REST API
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    MemorySize: 256
+    Architectures:
+    - arm64
+    Environment:
+      Variables:
+        USERS_TABLE:
+          Ref: UsersTable
+        VACATIONS_TABLE:
+          Ref: VacationsTable
+        VACATION_MEMBERSHIP_TABLE:
+          Ref: VacationMembershipTable
+        AUTH_TOKENS_TABLE:
+          Ref: AuthTokensTable
+Resources:
+  AgendaApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: '''POST,OPTIONS'''
+        AllowHeaders: '''Content-Type'''
+        AllowOrigin: '''*'''
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: username
+        AttributeType: S
+      KeySchema:
+      - AttributeName: username
+        KeyType: HASH
+  VacationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: code
+        AttributeType: S
+      KeySchema:
+      - AttributeName: code
+        KeyType: HASH
+  VacationMembershipTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: username
+        AttributeType: S
+      - AttributeName: code
+        AttributeType: S
+      KeySchema:
+      - AttributeName: username
+        KeyType: HASH
+      - AttributeName: code
+        KeyType: RANGE
+      GlobalSecondaryIndexes:
+      - IndexName: CodeIndex
+        KeySchema:
+        - AttributeName: code
+          KeyType: HASH
+        - AttributeName: username
+          KeyType: RANGE
+        Projection:
+          ProjectionType: ALL
+  AuthTokensTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: token
+        AttributeType: S
+      KeySchema:
+      - AttributeName: token
+        KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: LoginFunction
+      Handler: LoginLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: UsersTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /user/login
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: LoginFunction
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: RegisterFunction
+      Handler: RegisterLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: UsersTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /user/register
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: RegisterFunction
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: LogoutFunction
+      Handler: LogoutLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /user/logout
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: LogoutFunction
+  GetVacationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: GetVacationFunction
+      Handler: GetVacationLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/get
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: GetVacationFunction
+  GetVacationsForUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: GetVacationsForUserFunction
+      Handler: GetVacationsForUserLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationMembershipTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/getForUser
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: GetVacationsForUserFunction
+  CreateVacationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: CreateVacationFunction
+      Handler: CreateVacationLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationMembershipTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/create
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: CreateVacationFunction
+  UpdateVacationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: UpdateVacationFunction
+      Handler: UpdateVacationLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/update
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: UpdateVacationFunction
+  DeleteVacationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: DeleteVacationFunction
+      Handler: DeleteVacationLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationMembershipTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/delete
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: DeleteVacationFunction
+  AddUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: AddUserFunction
+      Handler: AddUserLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationMembershipTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/addUser
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: AddUserFunction
+  RemoveUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: RemoveUserFunction
+      Handler: RemoveUserLambda.handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationsTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: VacationMembershipTable
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: AuthTokensTable
+      Events:
+        Post:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AgendaApi
+            Path: /vacation/removeUser
+            Method: POST
+    Metadata:
+      BuildMethod: makefile
+      SamResourceId: RemoveUserFunction
+Outputs:
+  ApiUrl:
+    Description: Base URL for the Agenda REST API
+    Value:
+      Fn::Sub: https://${AgendaApi}.execute-api.${AWS::Region}.amazonaws.com/Prod
