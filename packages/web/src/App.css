@@ -423,6 +423,34 @@ body {
 	margin-bottom: 0;
 }
 
+.event-block--tiny {
+	padding: 1px 8px;
+	border-radius: 4px;
+}
+
+.event-block--tiny .event-block-inline {
+	padding-right: 16px;
+	gap: 4px;
+}
+
+.event-block--tiny .event-block-inline .event-block-name {
+	font-size: 0.7rem;
+	line-height: 1.1;
+}
+
+.event-block--tiny .event-block-inline .event-block-time {
+	font-size: 0.58rem;
+	line-height: 1.1;
+}
+
+.event-block--tiny .remove-btn--floating {
+	top: 1px;
+	right: 1px;
+	width: 14px;
+	height: 14px;
+	font-size: 0.55rem;
+}
+
 .remove-btn--floating {
 	position: absolute;
 	top: 4px;

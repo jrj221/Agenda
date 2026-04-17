@@ -27,11 +27,14 @@ interface DayPanelProps {
 	onManageCategories: () => void;
 }
 
-function hexToRgba(hex: string, alpha: number): string {
+function hexToTint(hex: string, amount: number): string {
 	const r = parseInt(hex.slice(1, 3), 16);
 	const g = parseInt(hex.slice(3, 5), 16);
 	const b = parseInt(hex.slice(5, 7), 16);
-	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+	const tr = Math.round(amount * r + (1 - amount) * 255);
+	const tg = Math.round(amount * g + (1 - amount) * 255);
+	const tb = Math.round(amount * b + (1 - amount) * 255);
+	return `rgb(${tr}, ${tg}, ${tb})`;
 }
 
 export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, draggedId, setDraggedId, categories, onManageCategories }: DayPanelProps) {
@@ -197,6 +200,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 							<input
 								className="date-input text-input"
 								type="time"
+								step={300}
 								value={startTime}
 								onChange={(e) => setStartTime(e.target.value)}
 							/>
@@ -205,6 +209,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 							<input
 								className="date-input text-input"
 								type="time"
+								step={300}
 								value={endTime}
 								onChange={(e) => setEndTime(e.target.value)}
 							/>
@@ -247,13 +252,16 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 
 						{layoutItems.map((item) => {
 							const tabIndent = Math.min(item.tabDepth, 4) * 10;
-							const isShort = (item.endMin - item.startMin) < 90;
+							const duration = item.endMin - item.startMin;
+							const isShort = duration < 105;
+							const isTiny = duration < 60;
+							const displayHeight = Math.max(duration, 30) * 0.5;
 							const timeLabel = `${formatTime12h(item.startTime)} – ${formatTime12h(item.endTime)}`;
 							const category = categories.find((c) => c.id === item.categoryId);
 							return (
 								<div
 									key={item.id}
-									className={`event-block ${draggedId === item.id ? "event-block--dragging" : ""}`}
+									className={`event-block ${isTiny ? "event-block--tiny" : ""} ${draggedId === item.id ? "event-block--dragging" : ""}`}
 									draggable
 									onDoubleClick={(e) => { e.stopPropagation(); openEdit(item); }}
 									onDragStart={(e) => {
@@ -264,13 +272,13 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 									onDragEnd={() => setDraggedId(null)}
 									style={{
 										top: `${item.startMin * 0.5}px`,
-										height: `${(item.endMin - item.startMin) * 0.5}px`,
+										height: `${displayHeight}px`,
 										left: `calc(${item.leftPercent}% + ${tabIndent}px)`,
 										width: `calc(${item.widthPercent}% - ${tabIndent + 4}px)`,
 										zIndex: draggedId === item.id ? 9999 : item.startMin,
 										...(category ? {
 											borderLeft: `4px solid ${category.color}`,
-											background: hexToRgba(category.color, 0.13),
+											background: hexToTint(category.color, 0.13),
 										} : {}),
 									}}
 								>
@@ -332,6 +340,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 								<input
 									className="date-input text-input"
 									type="time"
+									step={300}
 									value={editStartTime}
 									onChange={(e) => setEditStartTime(e.target.value)}
 								/>
@@ -340,6 +349,7 @@ export function DayPanel({ dayString, items, expanded, onToggle, presenterRef, d
 								<input
 									className="date-input text-input"
 									type="time"
+									step={300}
 									value={editEndTime}
 									onChange={(e) => setEditEndTime(e.target.value)}
 								/>
